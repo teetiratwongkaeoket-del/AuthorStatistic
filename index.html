@@ -1,0 +1,2618 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AuthorStats</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
+<!-- CSS Variables กำหนดตัวแปร สำหรับสี ระยะขอบ และเงาที่ใช้ร่วมกันทั้งระบบ 
+        - เพื่อความเป็นเอกภาพของงานออกแบบ และความสะดวกในการปรับปรุง Theme ในภายหลัง -->
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --ink-soft: #2d2d4e;
+    --paper: #f8f6f1;
+    --paper-warm: #f0ede6;
+    --paper-deep: #e8e4db;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --gold-pale: #f5edda;
+    --teal: #2a7f7f;
+    --teal-light: #3aa3a3;
+    --rose: #c25f6b;
+    --sage: #5a8a6a;
+    --slate: #6b7280;
+    --border: rgba(26,26,46,0.12);
+    --shadow: 0 4px 24px rgba(26,26,46,0.08);
+    --shadow-lg: 0 12px 48px rgba(26,26,46,0.14);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', 'Sarabun', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* การออกแบบ Sidebar */
+  .sidebar {
+    width: 240px;
+    min-height: 100vh;
+    background: var(--ink);
+    display: flex;
+    flex-direction: column;
+    padding: 28px 0;
+    position: fixed;
+    top: 0; left: 0;
+    z-index: 100;
+  }
+
+  .sidebar-logo {
+    font-family: 'Nunito', 'Sarabun', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--gold);
+    padding: 0 24px 28px;
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+    letter-spacing: -0.5px;
+  }
+  .sidebar-logo span { color: #fff; font-weight: 500; font-size: 13px; display: block; margin-top: 2px; letter-spacing: 2px; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; }
+
+  .nav-section { padding: 24px 16px 8px; flex: 1; }
+  .nav-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); font-family: 'JetBrains Mono', monospace; padding: 0 8px 8px; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: rgba(255,255,255,0.6);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    margin-bottom: 2px;
+    text-decoration: none;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+  .nav-item.active { background: var(--gold); color: var(--ink); font-weight: 600; }
+  .nav-item.active .nav-icon { opacity: 1; }
+  .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* การออกแบบส่วนหลักของ website */
+  .main {
+    margin-left: 240px;
+    flex: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* การออกแบบ Topbar */
+  .topbar {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .topbar-title {
+    font-family: 'Nunito', 'Sarabun', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .user-badge {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--paper-warm);
+    border-radius: 100px;
+    padding: 6px 14px 6px 6px;
+    font-size: 13px; font-weight: 600; color: var(--ink);
+  }
+  .user-avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--teal), var(--gold));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: #fff; font-weight: 700;
+  }
+
+  /* การออกแบบ CONTENT */
+  .content { padding: 32px; flex: 1; }
+
+  /* การออกแบบ PAGE */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* การออกแบบ CARDS */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 24px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .stat-card.gold::before { background: linear-gradient(90deg, var(--gold), var(--gold-light)); }
+  .stat-card.teal::before { background: linear-gradient(90deg, var(--teal), var(--teal-light)); }
+  .stat-card.rose::before { background: linear-gradient(90deg, var(--rose), #e08090); }
+  .stat-card.sage::before { background: linear-gradient(90deg, var(--sage), #7ab88a); }
+
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--slate); font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
+  .stat-value { font-size: 32px; font-weight: 800; font-family: 'Nunito', 'Sarabun', sans-serif; color: var(--ink); line-height: 1; }
+  .stat-sub { font-size: 12px; color: var(--slate); margin-top: 6px; }
+
+  /* การออกแบบ FILTERS */
+  .filter-bar {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .filter-label { font-size: 12px; font-weight: 600; color: var(--slate); white-space: nowrap; }
+
+  select, input[type="text"], input[type="number"], input[type="date"], textarea {
+    font-family: 'Plus Jakarta Sans', 'Sarabun', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--paper-warm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+  select:focus, input:focus, textarea:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.12);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* การออกแบบ BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    font-family: 'Plus Jakarta Sans', 'Sarabun', sans-serif;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--gold); color: var(--ink); }
+  .btn-primary:hover { background: var(--gold-light); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(201,168,76,0.3); }
+  .btn-secondary { background: var(--paper-deep); color: var(--ink); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--paper-warm); }
+  .btn-danger { background: #fee2e2; color: var(--rose); border: 1px solid rgba(194,95,107,0.2); }
+  .btn-danger:hover { background: #fecaca; }
+  .btn-ghost { background: transparent; color: var(--slate); padding: 6px 10px; }
+  .btn-ghost:hover { background: var(--paper-deep); color: var(--ink); }
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+  .btn-icon { padding: 7px; border-radius: var(--radius-sm); }
+
+  /* การออกแบบ ACTION BAR */
+  .action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .action-bar-left { display: flex; gap: 8px; align-items: center; }
+  .action-bar-right { display: flex; gap: 8px; }
+
+  /* การออกแบบ TABLE / LIST */
+  .list-card {
+    background: #fff;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .list-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--slate);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .list-row {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    align-items: center;
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-row:hover { background: var(--gold-pale); }
+  .list-row .row-title { font-weight: 600; font-size: 14px; color: var(--ink); }
+  .list-row .row-sub { font-size: 12px; color: var(--slate); margin-top: 2px; }
+  .row-actions { display: flex; gap: 4px; justify-content: flex-end; }
+
+  /* การออกแบบ STATUS BADGE */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-active { background: #d1fae5; color: #065f46; }
+  .badge-inactive { background: #f3f4f6; color: #6b7280; }
+  .badge-draft { background: #fef3c7; color: #92400e; }
+  .badge-rose { background: #fee2e2; color: #9f1239; }
+
+  /* การออกแบบ MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(26,26,46,0.5);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 32px;
+    width: 100%;
+    max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    animation: modalIn 0.25s ease;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(16px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .modal-title {
+    font-family: 'Nunito', 'Sarabun', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ink);
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--ink); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  /* การออกแบบ CHART GRID */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  .chart-card {
+    background: #fff;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 24px;
+    box-shadow: var(--shadow);
+  }
+  .chart-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--slate);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 20px;
+  }
+
+  /* การออกแบบ TABS */
+  .tab-bar { display: flex; gap: 4px; background: var(--paper-deep); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 20px; width: fit-content; }
+  .tab { padding: 8px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: var(--slate); }
+  .tab.active { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+
+  /* การออกแบบ EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--slate);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+  .empty-text { font-size: 15px; margin-bottom: 6px; font-weight: 500; }
+  .empty-sub { font-size: 13px; opacity: 0.7; }
+
+  /* การออกแบบ TOAST */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--ink);
+    color: #fff;
+    padding: 14px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 1000;
+    display: none;
+    animation: toastIn 0.3s ease;
+    max-width: 320px;
+    box-shadow: var(--shadow-lg);
+    border-left: 3px solid var(--gold);
+  }
+  .toast.show { display: block; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* config-card removed */
+
+  /* REVENUE specific */
+  .stories-cols { grid-template-columns: 1fr auto auto; }
+  .revenue-cols { grid-template-columns: 1fr 120px 120px 100px auto; gap: 8px; }
+  .chapter-cols { grid-template-columns: 50px 1fr 100px auto; gap: 8px; }
+
+  .section-title {
+    font-family: 'Nunito', 'Sarabun', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--ink);
+    margin: 28px 0 14px;
+  }
+
+  .top-stories-list { display: flex; flex-direction: column; gap: 8px; }
+  .top-story-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    background: var(--paper-warm);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .top-rank {
+    font-family: 'Nunito', 'Sarabun', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--gold);
+    width: 28px;
+    text-align: center;
+  }
+  .top-name { flex: 1; font-size: 14px; font-weight: 600; }
+  .top-amount { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; color: var(--teal); }
+
+  .recent-ep-list { display: flex; flex-direction: column; gap: 6px; }
+  .recent-ep-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 16px;
+    background: var(--paper-warm);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .ep-title { font-weight: 600; }
+  .ep-story { color: var(--slate); font-size: 12px; }
+
+  .radio-group { display: flex; gap: 12px; }
+  .radio-opt { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .radio-opt input { width: auto; }
+
+  .multi-select { min-height: 80px; }
+
+  /* Genre chip picker */
+  .genre-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0; }
+  .genre-chip {
+    display: inline-flex; align-items: center;
+    padding: 6px 16px;
+    border-radius: 100px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    border: 2px solid var(--border);
+    background: var(--paper-warm);
+    color: var(--slate);
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .genre-chip:hover { border-color: var(--gold); color: var(--ink); background: var(--gold-pale); }
+  .genre-chip.selected { background: var(--gold); border-color: var(--gold); color: var(--ink); font-weight: 700; }
+
+  @media (max-width: 900px) {
+    .chart-grid { grid-template-columns: 1fr; }
+    .revenue-cols { grid-template-columns: 1fr auto; }
+  }
+  @media (max-width: 700px) {
+    .sidebar { width: 200px; }
+    .main { margin-left: 200px; }
+    .content { padding: 20px; }
+  }
+
+  /* Loading */
+  .loading { display: flex; align-items: center; gap: 8px; color: var(--slate); font-size: 13px; padding: 20px 0; }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .inline-form { background: var(--paper-warm); border-radius: var(--radius); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">AuthorStats<span>Writer's Analytics</span></div>
+  <nav class="nav-section">
+    <div class="nav-label">Navigation</div>
+    <a class="nav-item active" onclick="navigate('dashboard')">
+      <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Dashboard
+    </a>
+    <a class="nav-item" onclick="navigate('content')">
+      <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> Content Management
+    </a>
+    <a class="nav-item" onclick="navigate('revenue')">
+      <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8"/><path d="M12 18V6"/></svg> Revenue Tracking
+    </a>
+    <a class="nav-item" onclick="navigate('settings')">
+      <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Settings
+    </a>
+    <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px;">
+      <div class="nav-label">Trash</div>
+      <a class="nav-item" onclick="navigate('trash')">
+        <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg> Trash
+      </a>
+    </div>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbarTitle">Dashboard</div>
+    <div class="topbar-right">
+      <div class="user-badge">
+        <div class="user-avatar">U</div>
+        User1
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- config section removed - key hardcoded -->
+
+    <!-- ===== DASHBOARD ===== -->
+    <div id="page-dashboard" class="page active">
+
+      <!-- Tab bar: แบ่ง Dashboard เป็น 2 แท็บ -->
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchDashTab('overview')">Overview</div>
+        <div class="tab" onclick="switchDashTab('revenue')">Revenue</div>
+      </div>
+
+      <!-- ── TAB 1: OVERVIEW ──────────────────────────────── -->
+      <!-- แสดงภาพรวมทั้งหมด -->
+      <div id="dashOverview">
+
+        <!-- Stat cards: ตัวเลขสรุปภาพรวม -->
+        <div class="stat-grid">
+          <div class="stat-card gold">
+            <div class="stat-label">Total Stories</div>
+            <div class="stat-value" id="statTotalStories">—</div>
+            <div class="stat-sub">Active stories</div>
+          </div>
+          <div class="stat-card teal">
+            <div class="stat-label">All-time Revenue</div>
+            <div class="stat-value" id="statTotalRevenue">—</div>
+            <div class="stat-sub">All stories combined</div>
+          </div>
+          <div class="stat-card rose">
+            <div class="stat-label">Total Chapters</div>
+            <div class="stat-value" id="statTotalChapters">—</div>
+            <div class="stat-sub">Across all stories</div>
+          </div>
+          <div class="stat-card sage">
+            <div class="stat-label">Avg per Story</div>
+            <div class="stat-value" id="statAvgRevenue">—</div>
+            <div class="stat-sub">Revenue average</div>
+          </div>
+        </div>
+
+        <!-- Charts row -->
+        <div class="chart-grid">
+          <div class="chart-card">
+            <div class="chart-title">Stories by Status</div>
+            <canvas id="chartStatus" height="200"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Revenue Over Time</div>
+            <canvas id="chartRevenue" height="200"></canvas>
+          </div>
+        </div>
+
+        <!-- Top 5: รายได้รวมทั้งหมดของแต่ละเรื่อง -->
+        <div class="section-title" style="display:flex;align-items:center;gap:8px;">
+          <svg style="width:16px;height:16px;color:var(--gold);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+          Top 5 Earning Stories
+        </div>
+        <div class="list-card" style="margin-bottom:24px;">
+          <div class="top-stories-list" id="topStories" style="padding:16px;">
+            <div class="loading"><div class="spinner"></div> Loading...</div>
+          </div>
+        </div>
+
+        <!-- Recent chapters -->
+        <div class="section-title" style="display:flex;align-items:center;gap:8px;">
+          <svg style="width:16px;height:16px;color:var(--teal);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Recent Chapters
+        </div>
+        <div class="list-card">
+          <div class="recent-ep-list" id="recentEpisodes" style="padding:16px;">
+            <div class="loading"><div class="spinner"></div> Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB 2: REVENUE ────────────────────────────────── -->
+      <!-- filter : date / story / platform / income type -->
+      <div id="dashRevenue" style="display:none;">
+
+        <!-- Filter bar สำหรับ revenue tab -->
+        <div class="filter-bar" style="margin-bottom:20px;">
+          <span class="filter-label">
+            <svg style="width:13px;height:13px;vertical-align:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            From:
+          </span>
+          <input type="date" id="filterDateFrom" style="width:140px;" onchange="loadDashRevenue()">
+          <span style="color:var(--slate);font-size:13px;">to</span>
+          <input type="date" id="filterDateTo" style="width:140px;" onchange="loadDashRevenue()">
+          <span class="filter-label" style="margin-left:8px;">
+            <svg style="width:13px;height:13px;vertical-align:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            Story:
+          </span>
+          <select id="filterDashStory" style="width:160px;" onchange="loadDashRevenue()"><option value="">All Stories</option></select>
+          <span class="filter-label">
+            <svg style="width:13px;height:13px;vertical-align:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+            Platform:
+          </span>
+          <select id="filterDashPlatform" style="width:140px;" onchange="loadDashRevenue()"><option value="">All Platforms</option></select>
+          <span class="filter-label">Type:</span>
+          <select id="filterDashIncome" style="width:140px;" onchange="loadDashRevenue()"><option value="">All Types</option></select>
+        </div>
+
+        <!-- Stat cards สำหรับช่วงเวลาที่ filter -->
+        <div class="stat-grid" style="margin-bottom:24px;">
+          <div class="stat-card teal">
+            <div class="stat-label">Filtered Revenue</div>
+            <div class="stat-value" id="statFilteredRevenue">—</div>
+            <div class="stat-sub">Selected period</div>
+          </div>
+          <div class="stat-card gold">
+            <div class="stat-label">Story Income</div>
+            <div class="stat-value" id="statStoryIncome">—</div>
+            <div class="stat-sub">Bulk income</div>
+          </div>
+          <div class="stat-card rose">
+            <div class="stat-label">Chapter Income</div>
+            <div class="stat-value" id="statChapterIncome">—</div>
+            <div class="stat-sub">Per-chapter income</div>
+          </div>
+          <div class="stat-card sage">
+            <div class="stat-label">Records</div>
+            <div class="stat-value" id="statRevRecords">—</div>
+            <div class="stat-sub">Total entries</div>
+          </div>
+        </div>
+
+        <!-- Revenue chart (filtered) -->
+        <div class="chart-card" style="margin-bottom:24px;">
+          <div class="chart-title">Revenue Over Time (Filtered)</div>
+          <canvas id="chartRevenueFiltered" height="160"></canvas>
+        </div>
+
+
+      </div>
+
+    </div>
+
+    <!-- ===== CONTENT MANAGEMENT ===== -->
+    <div id="page-content" class="page">
+      <div class="action-bar">
+        <div class="action-bar-left">
+          <button class="btn btn-primary" onclick="openModal('addStory')">+ Add Story</button>
+        </div>
+        <div class="action-bar-right">
+          <button class="btn btn-secondary" onclick="navigate('trash')" style="display:inline-flex;align-items:center;gap:6px;"><svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg> Trash</button>
+        </div>
+      </div>
+
+      <!-- Filter bar: กรอง stories ตาม status และ genre -->
+      <div class="filter-bar" style="margin-bottom:16px;">
+        <!-- ค้นหาชื่อเรื่อง -->
+        <input type="text" id="filterContentSearch"
+          placeholder="Search title..."
+          style="width:200px;"
+          oninput="renderFilteredStories()">
+        <!-- กรองตาม status -->
+        <span class="filter-label">Status:</span>
+        <select id="filterContentStatus" onchange="renderFilteredStories()" style="width:140px;">
+          <option value="">All</option>
+          <option value="published">Published</option>
+          <option value="unpublished">Unpublished</option>
+          <option value="closed">Closed</option>
+        </select>
+        <!-- กรองตาม genre -->
+        <span class="filter-label">Genre:</span>
+        <select id="filterContentGenre" onchange="renderFilteredStories()" style="width:140px;">
+          <option value="">All Genres</option>
+        </select>
+        <!-- sort -->
+        <span class="filter-label">Sort:</span>
+        <select id="filterContentSort" onchange="renderFilteredStories()" style="width:150px;">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="title_az">Title A→Z</option>
+          <option value="title_za">Title Z→A</option>
+        </select>
+      </div>
+
+      <div id="storyList">
+        <div class="loading"><div class="spinner"></div> Loading stories...</div>
+      </div>
+    </div>
+
+    <!-- ===== REVENUE TRACKING ===== -->
+    <div id="page-revenue" class="page">
+      <div class="action-bar">
+        <div class="action-bar-left">
+          <button class="btn btn-primary" onclick="openModal('addRevenue')">+ Add Record</button>
+        </div>
+        <div class="action-bar-right">
+          <button class="btn btn-secondary" onclick="navigate('trash')" style="display:inline-flex;align-items:center;gap:6px;"><svg style="width:14px;height:14px;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg> Trash</button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <span class="filter-label"><svg style="width:13px;height:13px;vertical-align:-2px;" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> Story:</span>
+        <select id="filterRevStory" style="width:150px;" onchange="loadRevenue()"><option value="">All Stories</option></select>
+        <span class="filter-label"><svg style="width:13px;height:13px;vertical-align:-2px;" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg> Platform:</span>
+        <select id="filterRevPlatform" style="width:130px;" onchange="loadRevenue()"><option value="">All Platforms</option></select>
+        <span class="filter-label"><svg style="width:13px;height:13px;vertical-align:-2px;" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> Type:</span>
+        <select id="filterRevType" style="width:130px;" onchange="loadRevenue()"><option value="">All Types</option></select>
+        <span class="filter-label">Sort:</span>
+        <select id="sortRev" style="width:130px;" onchange="loadRevenue()">
+          <option value="income_date_desc">Date ↓</option>
+          <option value="income_date_asc">Date ↑</option>
+          <option value="amount_desc">Amount ↓</option>
+          <option value="amount_asc">Amount ↑</option>
+        </select>
+      </div>
+
+      <div id="revenueList">
+        <div class="loading"><div class="spinner"></div> Loading...</div>
+      </div>
+    </div>
+
+    <!-- ===== SETTINGS ===== -->
+    <div id="page-settings" class="page">
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchTab('platforms')">Platforms</div>
+        <div class="tab" onclick="switchTab('genres')">Genres</div>
+      </div>
+
+      <!-- Platforms -->
+      <div id="tab-platforms">
+        <div class="action-bar">
+          <div></div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addPlatform')">+ Add Platform</button>
+        </div>
+        <div id="platformList" class="list-card">
+          <div class="loading"><div class="spinner"></div> Loading...</div>
+        </div>
+      </div>
+
+      <!-- Genres -->
+      <div id="tab-genres" style="display:none;">
+        <div class="action-bar">
+          <div></div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addGenre')">+ Add Genre</button>
+        </div>
+        <div id="genreList" class="list-card">
+          <div class="loading"><div class="spinner"></div> Loading...</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== TRASH ===== -->
+    <div id="page-trash" class="page">
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchTrashTab('stories')">Stories</div>
+        <div class="tab" onclick="switchTrashTab('chapters')">Chapters</div>
+        <div class="tab" onclick="switchTrashTab('revenue')">Revenue</div>
+      </div>
+      <div id="trashStories"></div>
+      <div id="trashChapters" style="display:none;"></div>
+      <div id="trashRevenue" style="display:none;"></div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ===== MODALS ===== -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal" id="modalBox">
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================
+// STATE & CONFIG
+// ============================
+// ใช้ DBMS ของ Supabase ดึงต้องมีการใส่ Key เพื่อเชื่อมกับฐานข้อมูล
+const SUPABASE_URL = 'https://kbhbzvktszeqrqlxpuqz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_WXQgEaVPhnzq1EHLusmfog_TSt4qEC2';
+
+//ประกาศ State ของหน้า User Interface (UI) เพื่อคุมว่าตอนนี้ผู้ใช้งานอยู่ที่ไหน
+let currentPage = 'dashboard';
+let currentTab = 'platforms';
+let currentTrashTab = 'stories';
+let editingId = null;
+
+
+
+// ============================
+// SUPABASE API
+// ============================
+
+//ฟังก์ชันกลางสำหรับคุยกับ Supabase
+//ไม่ต้องเขียน URL headers และ error handling ซ้ำทุกครั้งที่จะดึงหรือแก้ไขข้อมูล
+async function sbFetch(table, opts = {}) {
+  const { select = '*', filters = [], order, limit, body, method = 'GET', id } = opts;
+  let url = `${SUPABASE_URL}/rest/v1/${table}`;
+  const params = new URLSearchParams();
+  if (select) params.set('select', select);
+  if (order) params.set('order', order);
+  if (limit) params.set('limit', limit);
+  filters.forEach(f => params.set(f.col, f.val));
+  if (method === 'GET' || method === 'DELETE') url += '?' + params.toString();
+
+  const headers = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': method === 'POST' ? 'return=representation' : method === 'PATCH' ? 'return=representation' : ''
+  };
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (!res.ok) throw new Error(await res.text());
+  if (method === 'DELETE') return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data : [data];
+}
+
+//เพิ่มข้อมูลใหม่เข้าไปในฐานข้อมูล (Database) ผ่าน API
+async function sbInsert(table, body) {
+  return sbFetch(table, { method: 'POST', body });
+}
+
+//อัปเดตข้อมูลเข้าไปในฐานข้อมูล (Database) ผ่าน API
+async function sbUpdate(table, id, idCol, body) {
+  const url = `${SUPABASE_URL}/rest/v1/${table}?${idCol}=eq.${id}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+//ลบข้อมูลในฐานข้อมูล (Database) ผ่าน API แบบ soft delete
+async function sbSoftDelete(table, id, idCol) {
+  return sbUpdate(table, id, idCol, { deleted_at: new Date().toISOString() });
+}
+
+//กู้คืนรายการที่ถูกลบ
+async function sbRestore(table, id, idCol) {
+  return sbUpdate(table, id, idCol, { deleted_at: null });
+}
+
+//ลบข้อมูลในฐานข้อมูล (Database) ผ่าน API แบบ hard delete
+async function sbHardDelete(table, id, idCol) {
+  const url = `${SUPABASE_URL}/rest/v1/${table}?${idCol}=eq.${id}`;
+  await fetch(url, {
+    method: 'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+}
+
+// ============================
+// NAVIGATION การลดเลือกแต่ละแท็บ
+// ============================
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const titles = { dashboard:'Dashboard', content:'Content Management', revenue:'Revenue Tracking', settings:'Settings', trash:'Trash' };
+  document.getElementById('topbarTitle').textContent = titles[page] || page;
+  const pageEl = document.getElementById('page-' + page);
+  if (pageEl) pageEl.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes(`'${page}'`)) n.classList.add('active');
+  });
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'content') loadStories();
+  if (page === 'revenue') { loadRevenue(); populateRevFilters(); }
+  if (page === 'settings') { loadSettings(); }
+  if (page === 'trash') loadTrash();
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('#page-settings .tab').forEach((t, i) => {
+    const tabs = ['platforms', 'genres'];
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  ['platforms', 'genres'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
+  });
+  loadSettings();
+}
+
+function switchTrashTab(tab) {
+  currentTrashTab = tab;
+  document.querySelectorAll('#page-trash .tab').forEach((t, i) => {
+    t.classList.toggle('active', ['stories','chapters','revenue'][i] === tab);
+  });
+  document.getElementById('trashStories').style.display = tab === 'stories' ? 'block' : 'none';
+  document.getElementById('trashChapters').style.display = tab === 'chapters' ? 'block' : 'none';
+  document.getElementById('trashRevenue').style.display = tab === 'revenue' ? 'block' : 'none';
+  loadTrash();
+}
+
+// ============================
+// หน้า DASHBOARD
+// ============================
+
+// ── สถานะแท็บปัจจุบันของ Dashboard ──
+let currentDashTab = 'overview';
+
+// ── ตัวแปรเก็บ Chart.js instances
+//    ต้อง destroy() ก่อน re-render ทุกครั้ง ไม่งั้น chart จะซ้อนกัน ──
+let chartStatus = null, chartRevenue = null, chartRevenueFiltered = null;
+
+// ── สลับแท็บ Overview / Revenue ──
+function switchDashTab(tab) {
+  currentDashTab = tab;
+  // อัปเดต active class บน tab bar
+  document.querySelectorAll('#page-dashboard .tab').forEach((t, i) => {
+    t.classList.toggle('active', ['overview','revenue'][i] === tab);
+  });
+  // toggle visibility ของ content แต่ละแท็บ
+  document.getElementById('dashOverview').style.display = tab === 'overview' ? 'block' : 'none';
+  document.getElementById('dashRevenue').style.display  = tab === 'revenue'  ? 'block' : 'none';
+  // โหลดข้อมูลของแท็บที่เลือก
+  if (tab === 'overview') loadDashOverview();
+  else loadDashRevenue();
+}
+
+// ── loadDashboard: เรียกเมื่อ navigate มาหน้า Dashboard ──
+//    โหลดแท็บ Overview เป็นค่า default ──
+async function loadDashboard() {
+  // รีเซ็ตให้กลับไปแท็บ Overview เสมอเมื่อโหลดหน้าใหม่
+  switchDashTab('overview');
+  // populate filter dropdowns สำหรับแท็บ Revenue (ทำ background)
+  populateDashFilters();
+}
+
+// ── โหลดข้อมูลทั้งหมดสำหรับแท็บ Overview ──
+//    ข้อมูลทุกอย่างในแท็บนี้ "ไม่มี filter" — แสดงภาพรวมทั้งหมดเสมอ ──
+async function loadDashOverview() {
+  try {
+    // ดึงข้อมูลทั้ง 4 ตารางพร้อมกัน (parallel) เพื่อความเร็ว
+    const [stories, chapters, storyIncomes, epIncomes] = await Promise.all([
+      getActiveStories(),      // stories ที่ยังไม่ถูกลบ
+      getActiveChapters(),     // chapters ที่ยังไม่ถูกลบ
+      getAllStoryIncomes(),     // รายได้ระดับ story ทั้งหมด
+      getAllChapterIncomes(),   // รายได้ระดับ chapter ทั้งหมด
+    ]);
+
+    // รวมรายได้ทั้งหมดจากทั้ง 2 ตาราง
+    const allIncomes = [...storyIncomes, ...epIncomes];
+    const totalRev = allIncomes.reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
+
+    // แสดงตัวเลขใน stat cards
+    document.getElementById('statTotalStories').textContent  = stories.length;
+    document.getElementById('statTotalChapters').textContent = chapters.length;
+    document.getElementById('statTotalRevenue').textContent  = '฿' + totalRev.toLocaleString();
+    // avg per story: ถ้าไม่มี story ให้แสดง — แทน
+    document.getElementById('statAvgRevenue').textContent = stories.length
+      ? '฿' + Math.round(totalRev / stories.length).toLocaleString()
+      : '—';
+
+    // render กราฟและ lists
+    renderStatusChart(stories);
+    renderRevenueChart(allIncomes);
+    // Top 5: ใช้ข้อมูลรายได้รวมทั้งหมด story incomes + chapter incomes ไม่ต้องขึ้นกับ filter ใด ๆ
+    // ต้องส่ง chapters เข้าไปด้วยเพื่อ join episode_id → story_id
+    renderTopStories(stories, chapters, storyIncomes, epIncomes);
+    renderRecentEpisodes(chapters, stories);
+
+  } catch(e) { console.error('loadDashOverview error:', e); }
+}
+
+// ── ดึง stories ที่ยังไม่ถูก soft-delete เพราะรายการที่ถูกลบจะไม่นำมารวมกับรายได้ทั้งหมด ──
+async function getActiveStories() {
+  const rows = await sbFetch('stories', { filters: [{col:'deleted_at', val:'is.null'}] });
+  // double-check client-side เผื่อ Supabase filter ไม่ตรง
+  return rows.filter(r => !r.deleted_at);
+}
+
+// ── ดึง chapters ที่ยังไม่ถูก soft-delete เพราะรายการที่ถูกลบจะไม่นำมารวมกับรายได้ทั้งหมด ──
+async function getActiveChapters() {
+  const rows = await sbFetch('chapters', { filters: [{col:'deleted_at', val:'is.null'}] });
+  return rows.filter(r => !r.deleted_at);
+}
+
+// ── ดึง story_incomes ทั้งหมด สำหรับหน้า Overview ──
+async function getAllStoryIncomes() {
+  const rows = await sbFetch('story_incomes', { filters: [{col:'deleted_at', val:'is.null'}] });
+  return rows.filter(r => !r.deleted_at);
+}
+
+// ── ดึง chapter_incomes ทั้งหมด สำหรับหน้า Overview ──
+async function getAllChapterIncomes() {
+  const rows = await sbFetch('chapter_incomes', { filters: [{col:'deleted_at', val:'is.null'}] });
+  return rows.filter(r => !r.deleted_at);
+}
+
+// ── populate dropdowns filter ของแท็บ Revenue เพื่อให้ผู้ใช้สามารถเลือกตัวกรองในการดูรายได้ได้ ──
+//    ดึง stories + platforms + income_types มาใส่ <select> ──
+async function populateDashFilters() {
+  try {
+    const [stories, platforms, incomeTypes] = await Promise.all([
+      getActiveStories(),
+      sbFetch('platforms'),
+      sbFetch('income_types'),
+    ]);
+    // Story dropdown
+    const storyEl = document.getElementById('filterDashStory');
+    if (storyEl && storyEl.options.length <= 1) {
+      stories.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.story_id; opt.textContent = s.title;
+        storyEl.appendChild(opt);
+      });
+    }
+    // Platform dropdown
+    const platEl = document.getElementById('filterDashPlatform');
+    if (platEl && platEl.options.length <= 1) {
+      platforms.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.platform_id; opt.textContent = p.platform_name;
+        platEl.appendChild(opt);
+      });
+    }
+    // Income type dropdown
+    const typeEl = document.getElementById('filterDashIncome');
+    if (typeEl && typeEl.options.length <= 1) {
+      incomeTypes.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.income_type_id; opt.textContent = t.income_type_name;
+        typeEl.appendChild(opt);
+      });
+    }
+  } catch(e) { console.error('populateDashFilters error:', e); }
+}
+
+// ── โหลดข้อมูลสำหรับแท็บ Revenue ผ่านตัวกรอง (filter) ──
+async function loadDashRevenue() {
+  try {
+    // ดึงข้อมูลรายได้ stories และ chapters พร้อมกัน
+    // ต้องดึง chapters ด้วยเพราะ chapter_incomes ไม่มี story_id ต้อง join เอง
+    const [storyIncomes, epIncomes, stories, chapters] = await Promise.all([
+      getAllStoryIncomes(),
+      getAllChapterIncomes(),
+      getActiveStories(),
+      getActiveChapters(),
+    ]);
+
+    // สร้าง lookup: episode_id → story_id เพื่อ join chapter_incomes → story
+    const episodeToStory = Object.fromEntries(chapters.map(c => [c.episode_id, c.story_id]));
+
+    // attach story_id ให้ทุก chapter income record ก่อน filter
+    const epIncomesWithStory = epIncomes.map(r => ({
+      ...r,
+      story_id: r.story_id ?? episodeToStory[r.episode_id] ?? null,
+    }));
+
+    // อ่านค่า filter จาก UI
+    const dateFrom  = document.getElementById('filterDateFrom')?.value;
+    const dateTo    = document.getElementById('filterDateTo')?.value;
+    const storyId   = document.getElementById('filterDashStory')?.value;
+    const platformId= document.getElementById('filterDashPlatform')?.value;
+    const incomeType= document.getElementById('filterDashIncome')?.value;
+
+    // ── helper: กรอง rows ตาม filter ที่เลือก ──
+    const applyFilter = (rows) => rows.filter(r => {
+      if (dateFrom   && r.income_date < dateFrom) return false;
+      if (dateTo     && r.income_date > dateTo)   return false;
+      if (platformId && String(r.platform_id)    !== String(platformId))  return false;
+      if (incomeType && String(r.income_type_id) !== String(incomeType))  return false;
+      // strict check — ถ้า story_id เป็น null/undefined และมีการ filter → ตัดทิ้ง
+      if (storyId    && String(r.story_id)        !== String(storyId))    return false;
+      return true;
+    });
+
+    const filteredStory   = applyFilter(storyIncomes);
+    const filteredChapter = applyFilter(epIncomesWithStory);
+    const allFiltered     = [...filteredStory, ...filteredChapter];
+
+    // คำนวณยอดรวม
+    const totalFiltered  = allFiltered.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+    const totalStory     = filteredStory.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+    const totalChapter   = filteredChapter.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+
+    // อัปเดต stat cards
+    document.getElementById('statFilteredRevenue').textContent = '฿' + totalFiltered.toLocaleString();
+    document.getElementById('statStoryIncome').textContent     = '฿' + totalStory.toLocaleString();
+    document.getElementById('statChapterIncome').textContent   = '฿' + totalChapter.toLocaleString();
+    document.getElementById('statRevRecords').textContent      = allFiltered.length;
+
+    // render กราฟและ breakdown
+    renderRevenueChartFiltered(allFiltered);
+
+  } catch(e) { console.error('loadDashRevenue error:', e); }
+}
+
+// ── Doughnut chart: สัดส่วน stories แยกตาม status ──
+function renderStatusChart(stories) {
+  const counts = { published: 0, unpublished: 0, closed: 0 };
+  // นับจำนวน story แต่ละ status
+  stories.forEach(s => {
+    if (counts[s.status] !== undefined) counts[s.status]++;
+    else counts['unpublished']++; // fallback ถ้า status ไม่ตรง
+  });
+  if (chartStatus) chartStatus.destroy(); // destroy instance เก่าก่อน
+  chartStatus = new Chart(document.getElementById('chartStatus'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Published', 'Unpublished', 'Closed'],
+      datasets: [{ data: [counts.published, counts.unpublished, counts.closed],
+        backgroundColor: ['#2a7f7f','#c9a84c','#c25f6b'], borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: { plugins: { legend: { position: 'bottom', labels: { font: { family: 'Plus Jakarta Sans', size: 12 }, boxWidth: 12 } } }, cutout: '65%' }
+  });
+}
+
+// ── Line chart: รายได้รวมรายเดือน ใน Overview ──
+function renderRevenueChart(allIncomes) {
+  // ── เลือก granularity อัตโนมัติ ──
+  // ถ้าข้อมูลอยู่ในช่วง ≤ 60 วัน → plot รายวัน (เห็นทุก record)
+  // ถ้านานกว่า → plot รายเดือน (ไม่รกเกินไป)
+  const dates = allIncomes.map(r => r.income_date).filter(Boolean).sort();
+  if (!dates.length) {
+    if (chartRevenue) chartRevenue.destroy();
+    return;
+  }
+
+  const daySpan = (new Date(dates[dates.length - 1]) - new Date(dates[0])) / 86400000;
+  const useDaily = daySpan <= 60; // ≤ 60 วัน → รายวัน
+
+  const grouped = {};
+  allIncomes.forEach(r => {
+    if (!r.income_date) return;
+    // รายวัน: ใช้ full date (YYYY-MM-DD), รายเดือน: ตัดเหลือ YYYY-MM
+    const key = useDaily ? r.income_date.substring(0, 10) : r.income_date.substring(0, 7);
+    grouped[key] = (grouped[key] || 0) + parseFloat(r.amount || 0);
+  });
+
+  const labels = Object.keys(grouped).sort().slice(useDaily ? -60 : -12);
+  const data   = labels.map(l => grouped[l]);
+
+  if (chartRevenue) chartRevenue.destroy();
+  chartRevenue = new Chart(document.getElementById('chartRevenue'), {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'Revenue', data,
+      borderColor: '#c9a84c', backgroundColor: 'rgba(201,168,76,0.1)',
+      tension: 0.4, fill: true, pointBackgroundColor: '#c9a84c',
+      pointRadius: data.length <= 30 ? 5 : 3 }] },
+    options: {
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: ctx => '฿' + ctx.parsed.y.toLocaleString() } }
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' },
+             ticks: { callback: v => '฿' + v.toLocaleString() } },
+        x: { grid: { display: false },
+             ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 12 } }
+      }
+    }
+  });
+}
+
+// ── Line chart: รายได้รายเดือน (Revenue tab ผ่านตัวกรอง (filter) ──
+function renderRevenueChartFiltered(allIncomes) {
+  // ใช้ logic เดียวกับ renderRevenueChart — auto daily/monthly
+  const dates = allIncomes.map(r => r.income_date).filter(Boolean).sort();
+  if (!dates.length) {
+    if (chartRevenueFiltered) chartRevenueFiltered.destroy();
+    return;
+  }
+
+  const daySpan = (new Date(dates[dates.length - 1]) - new Date(dates[0])) / 86400000;
+  const useDaily = daySpan <= 60; // ≤ 60 วัน → รายวัน
+
+  const grouped = {};
+  allIncomes.forEach(r => {
+    if (!r.income_date) return;
+    // รายวัน: ใช้ full date (YYYY-MM-DD), รายเดือน: ตัดเหลือ YYYY-MM
+    const key = useDaily ? r.income_date.substring(0, 10) : r.income_date.substring(0, 7);
+    grouped[key] = (grouped[key] || 0) + parseFloat(r.amount || 0);
+  });
+
+  const labels = Object.keys(grouped).sort().slice(useDaily ? -60 : -12);
+  const data   = labels.map(l => grouped[l]);
+
+  if (chartRevenueFiltered) chartRevenueFiltered.destroy();
+  chartRevenueFiltered = new Chart(document.getElementById('chartRevenueFiltered'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Revenue', data,
+      backgroundColor: 'rgba(201,168,76,0.7)', borderColor: '#c9a84c',
+      borderWidth: 1, borderRadius: 6 }] },
+    options: {
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: ctx => '฿' + ctx.parsed.y.toLocaleString() } }
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' },
+             ticks: { callback: v => '฿' + v.toLocaleString() } },
+        x: { grid: { display: false },
+             ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 12 } }
+      }
+    }
+  });
+}
+
+// ── Top 5 Earning Stories ──
+//    ใช้ข้อมูลรายได้รวมทั้งหมด (storyIncomes + epIncomes) ──
+function renderTopStories(stories, chapters, storyIncomes, epIncomes) {
+  // ── 1. สร้าง lookup episode_id → story_id จาก chapters ──
+  // เพราะ chapter_incomes เก็บแค่ episode_id ไม่มี story_id โดยตรง
+  // ต้อง join ผ่านตาราง chapters ก่อนถึงจะรู้ว่าตอนนั้นเป็นของเรื่องไหน
+  const episodeToStory = {};
+  chapters.forEach(c => {
+    episodeToStory[c.episode_id] = c.story_id;
+  });
+
+  // ── 2. รวมยอดรายได้ทั้งหมดต่อ story ──
+  const storyTotals = {};
+
+  // 2.1 รายได้ระดับ story (story_incomes มี story_id โดยตรง)
+  storyIncomes.forEach(r => {
+    if (!r.story_id) return;
+    storyTotals[r.story_id] = (storyTotals[r.story_id] || 0) + parseFloat(r.amount || 0);
+  });
+
+  // 2.2 รายได้ระดับ chapter ต้อง join episode_id → story_id ผ่าน episodeToStory
+  epIncomes.forEach(r => {
+    const sid = r.story_id || episodeToStory[r.episode_id];
+    if (!sid) return; // ถ้า join ไม่ได้ก็ข้ามไป
+    storyTotals[sid] = (storyTotals[sid] || 0) + parseFloat(r.amount || 0);
+  });
+
+  // ── 3. map stories + ยอดรวม แล้ว sort หลังจากนั้น slice เหลือแค่ 5 รายการแรก ──
+  const sorted = stories
+    .map(s => ({ ...s, total: storyTotals[s.story_id] || 0 }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+
+  const el = document.getElementById('topStories');
+  if (!sorted.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div class="empty-text">No data yet</div></div>';
+    return;
+  }
+  el.innerHTML = sorted.map((s, i) => `
+    <div class="top-story-row">
+      <div class="top-rank">${i + 1}</div>
+      <div class="top-name">${s.title}</div>
+      <div class="top-amount">฿${s.total.toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+// ── Revenue breakdown by story (Revenue tab) ──
+//    แสดงรายได้ที่ผ่าน filter แบ่งตามชื่อเรื่อง ──
+
+// ── Recent Chapters: แสดง 5 chapters ล่าสุด (เรียงตาม episode_id มากไปน้อย) ──
+function renderRecentEpisodes(chapters, stories) {
+  // สร้าง lookup map: story_id → title เพื่อแสดงชื่อเรื่องแทน id
+  const storyMap = Object.fromEntries(stories.map(s => [s.story_id, s.title]));
+
+  // เรียง chapters ตาม episode_id ล่าสุด แล้วเอาแค่ 5 อันดับแรก
+  const recent = [...chapters].sort((a, b) => b.episode_id - a.episode_id).slice(0, 5);
+
+  const el = document.getElementById('recentEpisodes');
+  if (!recent.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="empty-text">No chapters yet</div></div>';
+    return;
+  }
+
+  // map status → badge color และ label
+  const statusBadge = { proofread: 'active', rewrite: 'rose', draft: 'draft' };
+  const statusLabel = { proofread: 'Proofread', draft: 'Draft', rewrite: 'Rewrite' };
+
+  el.innerHTML = recent.map(ep => `
+    <div class="recent-ep-row">
+      <div>
+        <div class="ep-title">${ep.title || 'Untitled'}</div>
+        <div class="ep-story">${storyMap[ep.story_id] || '—'}</div>
+      </div>
+      <span class="badge badge-${statusBadge[ep.status] || 'draft'}">${statusLabel[ep.status] || ep.status}</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--slate);">Ep #${ep.episode_number}</span>
+    </div>
+  `).join('');
+}
+
+// ============================
+// CONTENT MANAGEMENT
+// ============================
+let allStories = [];
+
+// ── ตัวแปร global สำหรับ content page ──
+let allGenres = [];        // genres ทั้งหมด (สำหรับ filter dropdown)
+let allStoryGenres = [];   // story_genres join table (story_id กับ genre_id)
+
+// ── โหลดข้อมูลทั้งหมดแล้วส่งไป render ──
+async function loadStories() {
+  const el = document.getElementById('storyList');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+  try {
+    // ดึงข้อมูลพร้อมกัน: stories + genres + story_genres
+    [allStories, allGenres, allStoryGenres] = await Promise.all([
+      sbFetch('stories'),
+      sbFetch('genres'),
+      sbFetch('story_genres'),
+    ]);
+
+    // populate genre filter dropdown
+    const genreEl = document.getElementById('filterContentGenre');
+    if (genreEl) {
+      // reset แล้วใส่ใหม่ป้องกัน duplicate เมื่อ reload
+      genreEl.innerHTML = '<option value="">All Genres</option>';
+      allGenres.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.genre_id;
+        opt.textContent = g.genre_name;
+        genreEl.appendChild(opt);
+      });
+    }
+
+    // render รายการ stories ตาม filter ปัจจุบัน
+    renderFilteredStories();
+  } catch(e) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="empty-text">Error: ${e.message}</div></div>`;
+  }
+}
+
+// ── กรองและ render รายการ stories ตาม filter ที่เลือก ──
+//    เรียกทุกครั้งที่ filter เปลี่ยน (oninput / onchange) ──
+function renderFilteredStories() {
+  const el = document.getElementById('storyList');
+  const search  = document.getElementById('filterContentSearch')?.value.toLowerCase().trim() || '';
+  const status  = document.getElementById('filterContentStatus')?.value || '';
+  const genreId = document.getElementById('filterContentGenre')?.value || '';
+  const sort    = document.getElementById('filterContentSort')?.value || 'newest';
+
+  // เริ่มจาก stories ที่ยังไม่ถูกลบ
+  let filtered = allStories.filter(s => !s.deleted_at);
+
+  // กรองตามคำค้นหา (ชื่อเรื่อง หรือ description)
+  if (search) {
+    filtered = filtered.filter(s =>
+      s.title.toLowerCase().includes(search) ||
+      (s.description || '').toLowerCase().includes(search)
+    );
+  }
+
+  // กรองตาม status
+  if (status) filtered = filtered.filter(s => s.status === status);
+
+  // กรองตาม genre: ดู story_genres ว่า story นั้นมี genre_id ที่เลือกไหม
+  if (genreId) {
+    const storyIdsWithGenre = new Set(
+      allStoryGenres
+        .filter(sg => String(sg.genre_id) === String(genreId))
+        .map(sg => sg.story_id)
+    );
+    filtered = filtered.filter(s => storyIdsWithGenre.has(s.story_id));
+  }
+
+  // sort ตามตัวเลือก
+  filtered.sort((a, b) => {
+    if (sort === 'newest') return new Date(b.created_at) - new Date(a.created_at);
+    if (sort === 'oldest') return new Date(a.created_at) - new Date(b.created_at);
+    if (sort === 'title_az') return a.title.localeCompare(b.title);
+    if (sort === 'title_za') return b.title.localeCompare(a.title);
+    return 0;
+  });
+
+  // build genre label lookup: story_id → array of genre names
+  const genreNameMap = Object.fromEntries(allGenres.map(g => [g.genre_id, g.genre_name]));
+  const storyGenreLabels = {};
+  allStoryGenres.forEach(sg => {
+    if (!storyGenreLabels[sg.story_id]) storyGenreLabels[sg.story_id] = [];
+    storyGenreLabels[sg.story_id].push(genreNameMap[sg.genre_id] || '');
+  });
+
+  // แสดง empty state ถ้าไม่มีผลลัพธ์
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+      <div class="empty-text">${allStories.filter(s=>!s.deleted_at).length ? 'No stories match the filter' : 'No stories yet'}</div>
+      ${!allStories.filter(s=>!s.deleted_at).length ? '<div class="empty-sub">Click "+ Add Story" to get started</div>' : ''}
+    </div>`;
+    return;
+  }
+
+  // กำหนด mapping ของสถานะ (status) → class CSS ของ badge
+  // ใช้เพื่อเปลี่ยนสีหรือรูปแบบของ badge ตามสถานะของเรื่อง
+  const statusBadge = { published:'active', unpublished:'inactive', closed:'draft' };
+  const statusLabel = { published:'Published', unpublished:'Unpublished', closed:'Closed' };
+
+  // กำหนด HTML ภายใน element ที่ส่งเข้ามา
+  el.innerHTML = `
+    <div style="font-size:12px;color:var(--slate);margin-bottom:8px;font-family:'JetBrains Mono',monospace;">
+      ${filtered.length} stor${filtered.length === 1 ? 'y' : 'ies'} found
+    </div>
+    <div class="list-card">
+      ${filtered.map(s => {
+        const genres = storyGenreLabels[s.story_id] || [];
+        return `
+          <div class="list-row" style="grid-template-columns:1fr auto auto;" onclick="openStoryDetail(${s.story_id})">
+            <div>
+              <div class="row-title">${s.title}</div>
+              <div class="row-sub" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+                ${s.description ? `<span>${s.description.slice(0,80)}${s.description.length>80?'…':''}</span>` : ''}
+                ${genres.map(g => `<span class="badge badge-inactive" style="font-size:10px;padding:2px 8px;">${g}</span>`).join('')}
+              </div>
+            </div>
+            <span class="badge badge-${statusBadge[s.status] || 'inactive'}" style="margin-right:8px;" onclick="event.stopPropagation()">
+              ${statusLabel[s.status] || s.status}
+            </span>
+            <div class="row-actions" onclick="event.stopPropagation()">
+              <button class="btn btn-ghost btn-icon" title="Edit" onclick="openEditStory(${s.story_id})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button class="btn btn-ghost btn-icon btn-danger" title="Delete" onclick="softDeleteStory(${s.story_id})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </button>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ฟังก์ชันสำหรับเปิดรายละเอียดของ Story
+async function openStoryDetail(storyId) {
+  // ค้นหา story จาก array allStories ตาม story_id ที่รับเข้ามา
+  const story = allStories.find(s => s.story_id === storyId);
+  if (!story) return;
+  let chapters = []; // ตัวแปรเก็บข้อมูล chapters ของ story
+  try {
+    const all = await sbFetch('chapters'); // ดึงข้อมูล chapters ทั้งหมดจากฐานข้อมูล
+    chapters = all.filter(c => String(c.story_id) === String(storyId) && !c.deleted_at); // กรองเฉพาะ chapter ที่อยู่ใน story นี้ และยังไม่ถูกลบ (soft delete)
+  } catch(e) {}
+
+  let genreHtml = ''; // ตัวแปรเก็บ HTML ของ genre badge
+  try {
+    // ดึงข้อมูล relation ระหว่าง story กับ genre
+    // และดึงข้อมูล genres พร้อมกันด้วย Promise.all
+    const [sg, genres] = await Promise.all([sbFetch('story_genres'), sbFetch('genres')]);
+    // หา genre_id ทั้งหมดของ story นี้
+    const storyGenreIds = sg.filter(r => String(r.story_id) === String(storyId)).map(r => r.genre_id);
+    // นำ genre_id ไปหา genre_name
+    const names = genres.filter(g => storyGenreIds.includes(g.genre_id)).map(g => g.genre_name);
+    // สร้าง badge HTML ของ genre แต่ละตัว
+    genreHtml = names.map(n => `<span class="badge badge-active" style="margin-right:4px;">${n}</span>`).join('');
+  } catch(e) {}
+
+  // เปิด modal แสดงรายละเอียด story
+  showModal(`
+    <div class="modal-title"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;vertical-align:-3px"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> ${story.title}</div>
+    <div style="display:grid;gap:8px;margin-bottom:20px;background:var(--paper-warm);padding:16px;border-radius:var(--radius-sm);">
+      <div><span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--slate);">Status</span>
+        <div style="margin-top:4px;"><span class="badge badge-${story.status === 'published' ? 'active' : story.status === 'closed' ? 'draft' : 'inactive'}">${{published:'Published',unpublished:'Unpublished',closed:'Closed'}[story.status] || story.status}</span></div>
+      </div>
+      <div><span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--slate);">Description</span>
+        <div style="margin-top:4px;font-size:14px;">${story.description || '—'}</div>
+      </div>
+      <div><span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--slate);">Genres</span>
+        <div style="margin-top:6px;">${genreHtml || '—'}</div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="font-weight:700;font-size:14px;">Chapters (${chapters.length})</div>
+      <button class="btn btn-primary btn-sm" onclick="openAddChapter(${storyId})">+ Add Chapter</button>
+    </div>
+    <div class="list-card" id="chapterListModal">
+      ${chapters.length ? chapters.map(c => `
+        <div class="list-row" style="grid-template-columns:50px 1fr 100px auto;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--slate);">#${c.episode_number}</span>
+          <div class="row-title" style="font-size:13px;">${c.title}</div>
+          <span class="badge badge-${c.status === 'proofread' ? 'active' : c.status === 'rewrite' ? 'rose' : 'draft'}" style="font-size:10px;">${{proofread:'Proofread',draft:'Draft',rewrite:'Rewrite'}[c.status] || c.status}</span>
+          <div class="row-actions">
+            <button class="btn btn-ghost btn-icon" title="Edit" onclick="openEditChapter(${c.episode_id},${storyId})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+            <button class="btn btn-ghost btn-icon btn-danger" title="Delete" onclick="softDeleteChapter(${c.episode_id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+          </div>
+        </div>
+      `).join('') : '<div class="empty-state" style="padding:30px;"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div class="empty-text">No chapters yet</div></div>'}
+    </div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>
+  `);
+}
+
+// ฟังก์ชันสำหรับเปิด Modal เพิ่ม Chapter ใหม่
+async function openAddChapter(storyId) {
+  closeModal(); // ปิด modal เดิมก่อน เพื่อป้องกัน modal ซ้อนกัน
+  await new Promise(r => setTimeout(r, 100));
+  // เปิด modal สำหรับเพิ่ม chapter
+  showModal(` 
+    <div class="modal-title">+ Add Chapter</div>
+    <div class="form-group"><div class="form-label">Chapter Title</div><input type="text" id="chTitle" placeholder="Chapter title"></div>
+    <div class="form-group"><div class="form-label">Episode Number</div><input type="number" id="chNum" min="1" placeholder="1"></div>
+    <div class="form-group"><div class="form-label">Status</div>
+      <select id="chStatus"><option value="draft">Draft</option><option value="proofread">Proofread</option><option value="rewrite">Rewrite</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveChapter(${storyId})">Save Chapter</button>
+    </div>
+  `);
+}
+
+// ฟังก์ชันสำหรับบันทึก Chapter ใหม่ลงฐานข้อมูล
+async function saveChapter(storyId) {
+  // ดึงค่าชื่อ chapter จาก input
+  const title = document.getElementById('chTitle').value.trim(); // trim() ใช้ตัดช่องว่างด้านหน้าและด้านหลัง
+  const num = document.getElementById('chNum').value; // ดึงค่า episode number จาก input
+  const status = document.getElementById('chStatus').value; // ดึงค่าสถานะจาก select
+  // ตรวจสอบว่าผู้ใช้กรอกชื่อ chapter หรือไม่ หากไม่มีข้อมูล จะหยุดการทำงานทันที
+  if (!title) { showToast('Enter chapter title'); return; }
+  try {
+    // เพิ่มข้อมูล chapter ลงใน table "chapters" มี
+    // id ของ story ที่ chapter นี้สังกัด
+    // ชื่อตอน
+    // แปลงเลขตอนเป็น integer
+    // สถานะ chapter
+    // ใช้ soft delete system ค่า null หมายถึงยังไม่ถูกลบ
+    await sbInsert('chapters', { story_id: storyId, title, episode_number: parseInt(num) || 1, status, deleted_at: null });
+    showToast('Chapter added ✓'); // แสดงข้อความเมื่อบันทึกสำเร็จ
+    closeModal(); // ปิด modal หลังบันทึกสำเร็จ
+  } catch(e) { showToast('Error: ' + e.message); } // หากเกิด error ระหว่าง insert จะแสดงข้อความ error ให้ผู้ใช้ทราบ
+}
+
+// ฟังก์ชันสำหรับเปิด Modal แก้ไขข้อมูล Chapter
+async function openEditChapter(episodeId, storyId) {
+  const all = await sbFetch('chapters'); // ดึงข้อมูล chapters ทั้งหมดจากฐานข้อมูล
+  const ch = all.find(c => c.episode_id === episodeId); // ค้นหา chapter ที่มี episode_id ตรงกับค่าที่ส่งเข้ามา
+  if (!ch) return;
+  closeModal();
+  await new Promise(r => setTimeout(r, 100));
+  // เปิด modal สำหรับแก้ไข chapter
+  showModal(` 
+    <div class="modal-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit Chapter</div>
+    <div class="form-group"><div class="form-label">Chapter Title</div><input type="text" id="chTitle" value="${ch.title || ''}"></div>
+    <div class="form-group"><div class="form-label">Episode Number</div><input type="number" id="chNum" value="${ch.episode_number || 1}"></div>
+    <div class="form-group"><div class="form-label">Status</div>
+      <select id="chStatus">
+        <option value="draft" ${ch.status === 'draft' ? 'selected' : ''}>Draft</option>
+        <option value="proofread" ${ch.status === 'proofread' ? 'selected' : ''}>Proofread</option>
+        <option value="rewrite" ${ch.status === 'rewrite' ? 'selected' : ''}>Rewrite</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="updateChapter(${episodeId},${storyId})">Update</button>
+    </div>
+  `);
+}
+
+// ฟังก์ชันสำหรับอัปเดตข้อมูล Chapter
+async function updateChapter(episodeId, storyId) {
+  const title = document.getElementById('chTitle').value.trim(); // ดึงค่าชื่อ chapter จาก input
+  const num = document.getElementById('chNum').value; // ดึงค่า episode number จาก input
+  const status = document.getElementById('chStatus').value; // ดึงค่าสถานะจาก select
+  try {
+    // อัปเดตข้อมูลใน table "chapters" มี
+    // ชื่อตาราง
+    // id ของ chapter ที่ต้องการแก้ไข
+    // ชื่อ primary key ของตาราง
+    // ข้อมูลที่ต้องการอัปเดต
+    // ชื่อตอนใหม่
+    // แปลงเลขตอนเป็น integer
+    // สถานะใหม่ของ chapter
+    await sbUpdate('chapters', episodeId, 'episode_id', { title, episode_number: parseInt(num) || 1, status });
+    showToast('Chapter updated ✓'); // แสดงข้อความแจ้งเตือนเมื่ออัปเดตสำเร็จ
+    closeModal(); // ปิด modal หลังบันทึกสำเร็จ
+    // หากเกิด error ระหว่างอัปเดตข้อมูล
+    // จะแสดงข้อความ error ให้ผู้ใช้ทราบ
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+// ฟังก์ชันสำหรับลบ Chapter แบบ Soft Delete
+async function softDeleteChapter(episodeId) {
+  // แสดงกล่องยืนยันก่อนลบ
+  // หากผู้ใช้กด Cancel จะหยุดการทำงานทันที
+  if (!confirm('Move this chapter to trash?')) return;
+  try {
+    // เรียกฟังก์ชัน soft delete
+    // โดยจะไม่ลบข้อมูลจริงออกจากฐานข้อมูล
+    // แต่จะอัปเดตค่า deleted_at แทน
+    await sbSoftDelete('chapters', episodeId, 'episode_id');
+    showToast('Chapter moved to trash'); // แสดงข้อความแจ้งเตือนเมื่อลบสำเร็จ
+    closeModal(); // ปิด modal หลังลบเสร็จ
+    // หากเกิด error ระหว่างลบ
+    // จะแสดงข้อความ error ให้ผู้ใช้ทราบ
+  } catch(e) { showToast('Error: ' + e.message); }
+} 
+
+// ฟังก์ชันสำหรับลบ Story แบบ Soft Delete
+async function softDeleteStory(storyId) {
+  // แสดงกล่องยืนยันก่อนลบ
+  // หากผู้ใช้ยกเลิก จะหยุดการทำงาน
+  if (!confirm('Move this story to trash?')) return;
+  try {
+    await sbSoftDelete('stories', storyId, 'story_id'); // เรียกฟังก์ชัน soft delete โดยอัปเดต deleted_at แทนการลบจริง
+    showToast('Story moved to trash'); // แสดงข้อความแจ้งเตือนเมื่อลบสำเร็จ
+    // โหลดรายการ stories ใหม่
+    // เพื่ออัปเดตข้อมูลบนหน้าเว็บหลังลบ
+    loadStories();
+        // หากเกิด error ระหว่างลบข้อมูล
+    // จะแสดงข้อความ error ให้ผู้ใช้ทราบ
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+// ฟังก์ชันสำหรับเปิด Modal แก้ไขข้อมูล Story
+async function openEditStory(storyId) {
+  const story = allStories.find(s => s.story_id === storyId); // ค้นหา story จาก array allStories ตาม story_id
+  if (!story) return; 
+  // ตัวแปรเก็บข้อมูล genres ทั้งหมด
+  // ตัวแปรเก็บ genre_id ของ story นี้
+  let genres = [], storyGenres = [];
+  try {
+    genres = await sbFetch('genres'); // ดึงข้อมูล genres ทั้งหมดจากฐานข้อมูล
+    const sg = await sbFetch('story_genres'); // ดึงข้อมูล relation ระหว่าง story กับ genres
+    // กรองเฉพาะ relation ของ story นี้
+    // และดึงเฉพาะ genre_id
+    storyGenres = sg.filter(r => String(r.story_id) === String(storyId)).map(r => r.genre_id); 
+  } catch(e) {}
+
+  // เปิด modal สำหรับแก้ไข story
+  showModal(`
+    <div class="modal-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit Story</div>
+    <div class="form-group"><div class="form-label">Title</div><input type="text" id="editTitle" value="${story.title}"></div>
+    <div class="form-group"><div class="form-label">Description</div><textarea id="editDesc">${story.description || ''}</textarea></div>
+    <div class="form-group"><div class="form-label">Status</div>
+      <select id="editStatus">
+        <option value="published" ${story.status === 'published' ? 'selected' : ''}>Published</option>
+        <option value="unpublished" ${story.status === 'unpublished' ? 'selected' : ''}>Unpublished</option>
+        <option value="closed" ${story.status === 'closed' ? 'selected' : ''}>Closed</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Genres</div>
+      <div class="genre-chips" id="editGenreChips">
+        ${genres.map(g => `<div class="genre-chip${storyGenres.includes(g.genre_id) ? ' selected' : ''}" data-id="${g.genre_id}" onclick="toggleChip(this)">${g.genre_name}</div>`).join('')}
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="updateStory(${storyId})">Update Story</button>
+    </div>
+  `);
+}
+
+// ฟังก์ชันสำหรับอัปเดตข้อมูล Story
+async function updateStory(storyId) {
+  const title = document.getElementById('editTitle').value.trim(); // ดึงค่าชื่อเรื่องจาก input
+  const description = document.getElementById('editDesc').value.trim(); // ดึงค่าคำอธิบายจาก textarea
+  const status = document.getElementById('editStatus').value; // ดึงค่าสถานะจาก select
+  // ดึง genre ที่ถูกเลือกทั้งหมด
+  const selectedGenres = [...document.querySelectorAll('#editGenreChips .genre-chip.selected')].map(el => parseInt(el.dataset.id));
+  if (!title) { showToast('Title is required'); return; } // ตรวจสอบว่ามีการกรอก title หรือไม่
+  try {
+    // อัปเดตข้อมูล story ใน table "stories"
+    await sbUpdate('stories', storyId, 'story_id', { title, description, status });
+    // =========================
+    // อัปเดตข้อมูล Genres
+    // =========================
+    // วิธีที่ใช้คือ:
+    // 1. ลบ relation เดิมทั้งหมด
+    // 2. เพิ่ม relation ใหม่ตาม genre ที่เลือก
+    try {
+      // ลบ genre relation เดิมทั้งหมดของ story นี้
+      await fetch(`${SUPABASE_URL}/rest/v1/story_genres?story_id=eq.${storyId}`, { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+      // วนลูปเพิ่ม genre relation ใหม่
+      // เพิ่มข้อมูลลง table story_genres
+      for (const gid of selectedGenres) await sbInsert('story_genres', { story_id: storyId, genre_id: gid });
+    } catch(e) {}
+    showToast('Story updated ✓'); // แสดงข้อความเมื่ออัปเดตสำเร็จ
+    closeModal();  // ปิด modal
+    loadStories(); // โหลดรายการ stories ใหม่ เพื่ออัปเดตข้อมูลบนหน้าเว็บ
+    // หากเกิด error ระหว่างอัปเดตข้อมูล
+    // จะแสดงข้อความ error ให้ผู้ใช้ทราบ
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+// ============================
+// REVENUE
+// ============================
+let allRevenue = []; // ประกาศตัวแปร Global สำหรับเก็บข้อมูลรายได้ทั้งหมด เพื่อใช้ในการ Export หรือประมวลผลอื่น ๆ ต่อไป
+
+// ฟังก์ชันโหลดข้อมูล Revenue ทั้งหมดแล้วส่งไป
+async function loadRevenue() {
+  // ดึง element ที่ใช้แสดงรายการ revenue โดยอ้างอิงจาก id="revenueList"
+  const el = document.getElementById('revenueList');
+
+  // แสดง Loading spinner ทันทีก่อนที่ข้อมูลจะโหลดเสร็จ เพื่อให้ผู้ใช้รู้ว่าระบบกำลังทำงาน
+  el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+
+  try {
+    // โหลดข้อมูลจาก 6 ตารางพร้อมกันด้วย Promise.all เพื่อประหยัดเวลา
+    // แทนที่จะรอทีละ request (sequential) ซึ่งช้ากว่า ใช้ parallel fetch แทน
+    const [si, ei, stories, chapters, platforms, incomeTypes] = await Promise.all([
+      sbFetch('story_incomes'),    // รายได้ระดับ story
+      sbFetch('chapter_incomes'),  // รายได้ระดับ chapter/episode
+      sbFetch('stories'),          // ข้อมูล story ทั้งหมด (ใช้แปลง story_id → ชื่อ)
+      sbFetch('chapters'),         // ข้อมูล chapter ทั้งหมด (ใช้แปลง episode_id → ชื่อตอน + ชื่อเรื่อง)
+      sbFetch('platforms'),        // แพลตฟอร์มทั้งหมด (ใช้แปลง platform_id → ชื่อแพลตฟอร์ม)
+      sbFetch('income_types'),     // ประเภทรายได้ทั้งหมด (ใช้แปลง income_type_id → ชื่อประเภท)
+    ]);
+
+    // สร้าง lookup map จาก story_id → ชื่อเรื่อง
+    // ใช้ Object.fromEntries + .map เพื่อแปลง array เป็น object key-value
+    // เพื่อให้ค้นหาชื่อเรื่องจาก id ได้ใน O(1) แทนที่จะ .find() ซ้ำๆ ใน O(n)
+    const storyMap = Object.fromEntries(stories.map(s => [s.story_id, s.title]));
+
+    // สร้าง lookup map จาก episode_id → { title, story (ชื่อเรื่อง), story_id }
+    // chapMap เก็บทั้ง title, story name และ story_id เพื่อให้ filter Story dropdown ทำงานได้
+    // เหตุผลที่ต้องเก็บ story_id ด้วย เพราะ chapter_incomes ไม่มี story_id โดยตรง ต้องดึงผ่าน chapMap
+    const chapMap = Object.fromEntries(chapters.map(c => [c.episode_id, { title: c.title, story: storyMap[c.story_id], story_id: c.story_id }]));
+
+    // สร้าง lookup map จาก platform_id → ชื่อแพลตฟอร์ม
+    const platMap = Object.fromEntries(platforms.map(p => [p.platform_id, p.platform_name]));
+
+    // สร้าง lookup map จาก income_type_id → ชื่อประเภทรายได้
+    const typeMap = Object.fromEntries(incomeTypes.map(t => [t.income_type_id, t.income_type_name]));
+
+    // แปลงข้อมูล story_incomes ให้อยู่ในรูปแบบ normalized สำหรับ render
+    // .filter(r => !r.deleted_at) → กรองเฉพาะ record ที่ยังไม่ถูก soft delete
+    // spread ...r เพื่อคงข้อมูลเดิมไว้ แล้วเพิ่ม field พิเศษขึ้นต้นด้วย _ เพื่อแยกว่าเป็น computed field
+    const siRows = si.filter(r => !r.deleted_at).map(r => ({
+      ...r,
+      _type: 'story',                              // ระบุว่าเป็นรายได้ระดับ story (ใช้แสดง badge สี)
+      _id: r.story_income_id,                      // unified id field ใช้ร่วมกับ chapter ได้โดยไม่ต้องแยก logic
+      _title: storyMap[r.story_id] || 'Unknown',   // ชื่อเรื่อง (fallback เป็น 'Unknown' ถ้าหาไม่เจอ)
+      _platform: platMap[r.platform_id] || '—',   // ชื่อแพลตฟอร์ม (fallback เป็น em dash ถ้าไม่มีข้อมูล)
+      _incomeType: typeMap[r.income_type_id] || '—' // ชื่อประเภทรายได้
+    }));
+
+    // แปลงข้อมูล chapter_incomes ในลักษณะเดียวกัน แต่ต้องดึง story_id ผ่าน chapMap ก่อน
+    const eiRows = ei.filter(r => !r.deleted_at).map(r => {
+      // ดึงข้อมูล chapter จาก chapMap โดยใช้ episode_id เป็น key
+      const chap = chapMap[r.episode_id];
+
+      // join story_id จาก chapters เพราะ chapter_incomes ไม่มี story_id โดยตรง
+      // ใช้ optional chaining (?.) เพื่อป้องกัน error กรณี chap เป็น undefined
+      // ?? null คือ nullish coalescing: ถ้า chap?.story_id เป็น undefined/null ให้ใช้ null แทน
+      const resolvedStoryId = chap?.story_id ?? null;
+
+      return {
+        ...r,
+        story_id: resolvedStoryId,   // inject story_id เข้าไปใน record เพื่อให้ filter by story ทำงานได้
+        _type: 'chapter',            // ระบุว่าเป็นรายได้ระดับ chapter (ใช้แสดง badge สีน้ำเงิน)
+        _id: r.chapter_income_id,    // unified id field
+        // แสดงชื่อตอน + ชื่อเรื่องในวงเล็บ เช่น "ตอนที่ 1 (เรื่อง ABC)"
+        // ใช้ || 'Ep' เป็น fallback กรณีหาชื่อตอนไม่เจอ
+        _title: (chap?.title || 'Ep') + ' (' + (chap?.story || '') + ')',
+        _platform: platMap[r.platform_id] || '—',
+        _incomeType: typeMap[r.income_type_id] || '—'
+      };
+    });
+
+    // รวม siRows และ eiRows เข้าด้วยกันเป็น array เดียว
+    // ใช้ spread operator [...a, ...b] เพื่อสร้าง array ใหม่โดยไม่ mutate ของเดิม
+    let rows = [...siRows, ...eiRows];
+
+    // === ส่วน Filters ให้อ่านค่าจาก dropdown ที่ผู้ใช้เลือก ===
+    // ใช้ optional chaining (?.) เพื่อป้องกัน error กรณี element ยังไม่ได้ render
+    const storyId = document.getElementById('filterRevStory')?.value;    // filter ตาม story
+    const platId = document.getElementById('filterRevPlatform')?.value;  // filter ตามแพลตฟอร์ม
+    const typeId = document.getElementById('filterRevType')?.value;      // filter ตามประเภทรายได้
+    // อ่านค่า sort option; ถ้าไม่มีให้ default เป็นเรียงวันที่ล่าสุดก่อน
+    const sort = document.getElementById('sortRev')?.value || 'income_date_desc';
+
+    // กรองข้อมูลตามเงื่อนไขที่ผู้ใช้เลือก (เฉพาะเมื่อมีการเลือก filter เท่านั้น)
+    // ใช้ String() เพื่อป้องกัน type mismatch ระหว่าง number และ string
+    if (storyId) rows = rows.filter(r => String(r.story_id) === storyId);
+    if (platId)  rows = rows.filter(r => String(r.platform_id) === platId);
+    if (typeId)  rows = rows.filter(r => String(r.income_type_id) === typeId);
+
+    // === ส่วน Sort: เรียงลำดับข้อมูลตาม option ที่เลือก ===
+    // ใช้ .sort() พร้อม comparator function ที่ return 1 หรือ -1
+    rows.sort((a, b) => {
+      // เรียงวันที่ใหม่ → เก่า: เปรียบเทียบ string ของวันที่ (ISO format เปรียบเทียบ lexicographic ได้ถูกต้อง)
+      // ใช้ || '' เป็น fallback กรณีวันที่เป็น null/undefined เพื่อป้องกัน error
+      if (sort === 'income_date_desc') return (b.income_date || '') > (a.income_date || '') ? 1 : -1;
+      // เรียงวันที่เก่า → ใหม่
+      if (sort === 'income_date_asc')  return (a.income_date || '') > (b.income_date || '') ? 1 : -1;
+      // เรียงจำนวนเงินมาก → น้อย
+      if (sort === 'amount_desc') return b.amount - a.amount;
+      // เรียงจำนวนเงินน้อย → มาก
+      if (sort === 'amount_asc')  return a.amount - b.amount;
+      // กรณีไม่ match sort option ใดเลย: ไม่เปลี่ยนลำดับ
+      return 0;
+    });
+
+    // บันทึก rows ที่ผ่าน filter และ sort แล้วไว้ใน global variable
+    // เหตุผล: ฟังก์ชัน export หรือฟังก์ชันอื่นสามารถเข้าถึงข้อมูลนี้ได้โดยไม่ต้อง fetch ซ้ำ
+    allRevenue = rows;
+
+    // === กรณีไม่มีข้อมูล: แสดง empty state แทน ===
+    if (!rows.length) {
+      // แสดง UI แบบ empty state พร้อม icon และข้อความแนะนำ
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg></div><div class="empty-text">No revenue records</div><div class="empty-sub">Click "Add Record" to get started</div></div>';
+      return; // หยุดการทำงานของฟังก์ชัน ไม่ต้อง render ตาราง
+    }
+
+    // Render ตารางรายการ revenue
+    // ใช้ template literal สร้าง HTML string แล้ว inject เข้า DOM ทีเดียว
+    el.innerHTML = `
+      <div class="list-card">
+        <div class="list-header revenue-cols">
+          <span>Details</span><span>Platform</span><span>Type</span><span>Amount</span><span>Actions</span>
+        </div>
+        ${rows.map(r => `
+          <div class="list-row revenue-cols">
+            <div>
+              <div class="row-title" style="font-size:13px;">${r._title}</div>
+              <div class="row-sub">${r.income_date || ''} · <span style="background:${r._type === 'story' ? '#d1fae5' : '#dbeafe'};padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">${r._type.toUpperCase()}</span></div>
+            </div>
+            <span style="font-size:13px;">${r._platform}</span>
+            <span style="font-size:13px;">${r._incomeType}</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:var(--teal);">฿${parseFloat(r.amount).toLocaleString()}</span>
+            <div class="row-actions">
+              <button class="btn btn-ghost btn-icon" onclick="openEditRevenue('${r._type}',${r._id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+              <button class="btn btn-ghost btn-icon btn-danger" onclick="softDeleteRevenue('${r._type}',${r._id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+
+  } catch(e) {
+    // กรณีเกิด error ให้แสดง error state
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="empty-text">Error loading</div></div>`;
+  }
+}
+
+// ฟังก์ชันสำหรับโหลดข้อมูลไปใส่ใน Revenue Filters
+async function populateRevFilters() {
+  // โหลดข้อมูลสำหรับ populate dropdown filter ทั้งหมดพร้อมกัน
+  try {
+    // fetch 3 ตารางพร้อมกัน: stories, platforms, income_types
+    const [stories, platforms, incomeTypes] = await Promise.all([
+      sbFetch('stories'),
+      sbFetch('platforms'),
+      sbFetch('income_types')
+    ]);
+
+    // ใส่ options ใน dropdown filter story ทั้งใน Revenue tab และ Dashboard tab พร้อมกัน
+    // ใช้ forEach เพราะ dropdown ทั้งสองมี id ต่างกัน แต่ต้องการข้อมูลชุดเดียวกัน
+    ['filterRevStory','filterDashStory'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        // กรองเฉพาะ story ที่ยังไม่ถูก soft delete แล้วสร้าง <option> ให้แต่ละ story
+        // ขึ้นต้นด้วย option "All Stories" (value="") เพื่อให้ผู้ใช้ reset filter ได้
+        el.innerHTML = '<option value="">All Stories</option>' +
+          stories.filter(s => !s.deleted_at)
+                 .map(s => `<option value="${s.story_id}">${s.title}</option>`)
+                 .join('');
+      }
+    });
+
+    // ใส่ options ใน dropdown filter platform ทั้งใน Revenue tab และ Dashboard tab
+    ['filterRevPlatform','filterDashPlatform'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        // ไม่มีการ filter deleted_at เพราะ platforms ไม่มี soft delete
+        el.innerHTML = '<option value="">All Platforms</option>' +
+          platforms.map(p => `<option value="${p.platform_id}">${p.platform_name}</option>`)
+                   .join('');
+      }
+    });
+
+    // ใส่ options ใน dropdown filter income type ทั้งใน Revenue tab และ Dashboard tab
+    ['filterRevType','filterDashIncome'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.innerHTML = '<option value="">All Types</option>' +
+          incomeTypes.map(t => `<option value="${t.income_type_id}">${t.income_type_name}</option>`)
+                     .join('');
+      }
+    });
+
+  } catch(e) {
+
+  }
+}
+
+// ฟังก์ชันลบรายการรายได้
+async function softDeleteRevenue(type, id) {
+  // แสดง confirm dialog ก่อนลบ เพื่อป้องกันการลบโดยไม่ตั้งใจ
+  // ถ้าผู้ใช้กด Cancel ให้หยุดการทำงานทันที (early return pattern)
+  if (!confirm('Move to trash?')) return;
+
+  try {
+    // เลือก table และ primary key column ตาม type ที่รับมา
+    // type === 'story' → ใช้ตาราง story_incomes, primary key คือ story_income_id
+    // type === 'chapter' → ใช้ตาราง chapter_incomes, primary key คือ chapter_income_id
+    if (type === 'story') {
+      await sbSoftDelete('story_incomes', id, 'story_income_id');
+    } else {
+      await sbSoftDelete('chapter_incomes', id, 'chapter_income_id');
+    }
+
+    // แจ้งผู้ใช้ว่าลบสำเร็จด้วย toast notification
+    showToast('Moved to trash');
+
+    // reload รายการ revenue เพื่อให้ UI ซิงค์กับข้อมูลล่าสุด (record ที่ลบจะหายออกไป)
+    loadRevenue();
+
+  } catch(e) {
+    // ถ้าเกิด error แสดงข้อความ error ผ่าน toast เพื่อให้ผู้ใช้รู้ว่าลบไม่สำเร็จ
+    showToast('Error: ' + e.message);
+  }
+}
+
+// ฟังก์ชันเปิด modal เพื่อแก้ไขข้อมูลรายได้
+async function openEditRevenue(type, id) {
+  // ประกาศตัวแปร rec ไว้นอก try block เพื่อให้ใช้ได้ใน scope ถัดไป
+  let rec;
+
+  try {
+    // เลือก table และ primary key column ตาม type (เหมือน softDeleteRevenue)
+    const table = type === 'story' ? 'story_incomes' : 'chapter_incomes';
+    const idCol  = type === 'story' ? 'story_income_id' : 'chapter_income_id';
+
+    // fetch ข้อมูลทั้งตาราง แล้วหา record ที่ตรงกับ id ที่รับมา
+    // sbFetch ไม่รองรับ filter by id โดยตรง
+    const rows = await sbFetch(table);
+    rec = rows.find(r => r[idCol] === id); // ค้นหา record ที่ primary key ตรงกัน
+
+  } catch(e) {
+    return;
+  }
+
+  // ถ้าหา record ไม่เจอ (เช่น id ผิด หรือถูกลบไปแล้ว) ออกจากฟังก์ชัน
+  if (!rec) return;
+
+  // โหลด platforms และ income_types พร้อมกัน เพื่อใช้สร้าง <select> options ใน modal
+  const [platforms, incomeTypes] = await Promise.all([
+    sbFetch('platforms'),
+    sbFetch('income_types')
+  ]);
+
+  // เปิด modal แสดงฟอร์ม Edit Revenue
+  // ใช้ template literal สร้าง HTML ของ modal ทั้งหมดในครั้งเดียว
+  showModal(`
+    <div class="modal-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit Revenue Record</div>
+
+    <div class="form-group"><div class="form-label">Platform</div>
+      <select id="eRevPlat">${platforms.map(p => `<option value="${p.platform_id}" ${String(rec.platform_id) === String(p.platform_id) ? 'selected' : ''}>${p.platform_name}</option>`).join('')}</select>
+    </div>
+
+    <div class="form-group"><div class="form-label">Income Type</div>
+      <select id="eRevType">${incomeTypes.map(t => `<option value="${t.income_type_id}" ${String(rec.income_type_id) === String(t.income_type_id) ? 'selected' : ''}>${t.income_type_name}</option>`).join('')}</select>
+    </div>
+
+    <div class="form-group"><div class="form-label">Amount</div><input type="number" id="eRevAmt" value="${rec.amount}" min="0" step="0.01"></div>
+
+    <div class="form-group"><div class="form-label">Date</div><input type="date" id="eRevDate" value="${rec.income_date || ''}"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="updateRevenue('${type}',${id})">Update</button>
+    </div>
+  `);
+}
+
+// ฟังก์ชันอัปเดตแก้ไขรายการรายได้
+async function updateRevenue(type, id) {
+  // เลือก table และ primary key column ตาม type (story หรือ chapter)
+  const table = type === 'story' ? 'story_incomes' : 'chapter_incomes';
+  const idCol  = type === 'story' ? 'story_income_id' : 'chapter_income_id';
+
+  // รวบรวมค่าจาก input ใน modal เพื่อสร้าง object สำหรับ update
+  const body = {
+    // parseInt() แปลง string จาก <select> value เป็น integer ตามที่ database ต้องการ
+    platform_id:    parseInt(document.getElementById('eRevPlat').value),
+    income_type_id: parseInt(document.getElementById('eRevType').value),
+    // parseFloat() แปลง string จาก <input type="number"> เป็น float (รองรับทศนิยม)
+    amount:         parseFloat(document.getElementById('eRevAmt').value),
+    // วันที่เก็บเป็น string รูปแบบ ISO (YYYY-MM-DD) ตรงๆ จาก input
+    income_date:    document.getElementById('eRevDate').value,
+  };
+
+  try {
+    // เรียก sbUpdate เพื่อ PATCH/UPDATE record ใน database ด้วย table, id, idCol และ body ที่เตรียมไว้
+    await sbUpdate(table, id, idCol, body);
+
+    // แจ้งผู้ใช้ว่าอัพเดทสำเร็จ
+    showToast('Revenue updated ✓');
+
+    // ปิด modal หลังบันทึกสำเร็จ
+    closeModal();
+
+    // reload รายการ revenue เพื่อให้ UI แสดงข้อมูลที่อัพเดทแล้ว
+    loadRevenue();
+
+  } catch(e) {
+    // แสดง error message ถ้า update ล้มเหลว
+    showToast('Error: ' + e.message);
+  }
+}
+
+// ============================
+// SETTINGS
+// ============================
+
+// loadSettings — ฟังก์ชันกลางสำหรับโหลดข้อมูลในหน้า Settings
+// ตรวจสอบว่า currentTab (แท็บที่กำลังแสดงอยู่) คืออะไร
+// แล้วเรียกฟังก์ชันโหลดที่ตรงกันเท่านั้น (Lazy Load)
+// ไม่โหลดข้อมูลทุกแท็บพร้อมกัน ลดการเรียก API ที่ไม่จำเป็น
+async function loadSettings() {
+  if (currentTab === 'platforms') await loadPlatforms(); // ถ้าแท็บปัจจุบันคือ platforms → โหลด platforms
+  if (currentTab === 'genres') await loadGenres();       // ถ้าแท็บปัจจุบันคือ genres → โหลด genres
+}
+
+// loadPlatforms — โหลดรายการ Platform จาก Supabase
+// แล้วแสดงผลเป็น list พร้อมปุ่ม Edit และ Delete ในแต่ละแถว
+async function loadPlatforms() {
+  const el = document.getElementById('platformList'); // อ้างอิง element ที่จะแสดงรายการ
+  try {
+    const rows = await sbFetch('platforms'); // ดึงข้อมูลทั้งหมดจากตาราง platforms ใน Supabase
+
+    // ถ้ามีข้อมูล → สร้าง HTML แถวสำหรับแต่ละ platform ด้วย .map() แล้วรวมด้วย .join('')
+    // ถ้าไม่มีข้อมูล → แสดง empty state แทน
+    el.innerHTML = rows.length ? rows.map(p => `
+      <div class="list-row" style="grid-template-columns:1fr auto;">
+        <div class="row-title">${p.platform_name}</div>
+        <div class="row-actions">
+          <button class="btn btn-ghost btn-icon" onclick="openEditPlatform(${p.platform_id},'${p.platform_name}')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          <button class="btn btn-ghost btn-icon btn-danger" onclick="deletePlatform(${p.platform_id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+        </div>
+      </div>`).join('') : '<div class="empty-state" style="padding:30px;"><div class="empty-text">No platforms yet</div></div>';
+  } catch(e) {} // ดักจับ error เงียบๆ เพื่อไม่ให้หน้าเพจ crash ถ้า API ล้มเหลว
+}
+
+// loadGenres — โหลดรายการ Genre จาก Supabase
+// โครงสร้างเหมือนกับ loadPlatforms ทุกประการ แต่ใช้ตาราง genres และ field genre_id / genre_name
+async function loadGenres() {
+  const el = document.getElementById('genreList'); // อ้างอิง element ที่จะแสดงรายการ
+  try {
+    const rows = await sbFetch('genres'); // ดึงข้อมูลทั้งหมดจากตาราง genres ใน Supabase
+
+    // ถ้ามีข้อมูล → render แถวพร้อมปุ่ม Edit และ Delete สำหรับแต่ละ genre
+    // ถ้าไม่มีข้อมูล → แสดง empty state
+    el.innerHTML = rows.length ? rows.map(g => `
+      <div class="list-row" style="grid-template-columns:1fr auto;">
+        <div class="row-title">${g.genre_name}</div> 
+        <div class="row-actions">
+          <button class="btn btn-ghost btn-icon" onclick="openEditGenre(${g.genre_id},'${g.genre_name}')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          <button class="btn btn-ghost btn-icon btn-danger" onclick="deleteGenre(${g.genre_id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+        </div>
+      </div>`).join('') : '<div class="empty-state" style="padding:30px;"><div class="empty-text">No genres yet</div></div>';
+  } catch(e) {}
+}
+
+// ============================
+// TRASH
+// ============================
+
+// loadTrash — ฟังก์ชันกลางสำหรับโหลดข้อมูลในถังขยะ (Soft Delete)
+// ตรวจสอบ currentTrashTab ว่ากำลังดูถังขยะหมวดไหน
+// แล้วโหลดเฉพาะข้อมูลของหมวดนั้น (Lazy Load เช่นเดิม)
+// ะบบนี้ใช้ Soft Delete (มี field deleted_at) แทนการลบจริง ข้อมูลที่ถูกลบจะยังอยู่ใน DB แต่ซ่อนจากมุมมองปกติ
+// ถังขยะทำหน้าที่แสดงเฉพาะ records ที่มี deleted_at ≠ null
+async function loadTrash() {
+
+  // ─── หมวด Chapters 
+  if (currentTrashTab === 'chapters') {
+    const el = document.getElementById('trashChapters'); // อ้างอิง element แสดงผล
+    try {
+      // ดึงข้อมูล chapters และ stories พร้อมกันด้วย Promise.all เพื่อประหยัดเวลา
+      // ต้องการชื่อ story มาแสดงคู่กับแต่ละ chapter ในถังขยะ
+      const [chapters, stories] = await Promise.all([sbFetch('chapters'), sbFetch('stories')]);
+
+      // สร้าง lookup map: { story_id → story_title }
+      // เพื่อ lookup ชื่อ story จาก story_id ได้เร็วใน O(1) แทนการวนลูปซ้ำ
+      const storyMap = Object.fromEntries(stories.map(s => [s.story_id, s.title]));
+
+      // กรองเฉพาะ chapters ที่มี deleted_at (ถูก soft delete แล้ว)
+      const deleted = chapters.filter(c => c.deleted_at);
+
+      // ถ้ามีรายการในถังขยะ → render แต่ละแถวพร้อมปุ่ม Restore และ Delete Forever
+      // ถ้าไม่มี → แสดง empty state "Trash is empty"
+      el.innerHTML = deleted.length ? `<div class="list-card">${deleted.map(c => `
+        <div class="list-row" style="grid-template-columns:1fr auto;">
+          <div>
+            <div class="row-title">Ep #${c.episode_number} — ${c.title || 'Untitled'}</div>
+            <div class="row-sub">${storyMap[c.story_id] || '—'} · Deleted</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn-secondary btn-sm" onclick="restoreChapter(${c.episode_id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Restore</button>
+            <button class="btn btn-danger btn-sm" onclick="hardDeleteChapter(${c.episode_id})">Delete Forever</button>
+          </div>
+        </div>`).join('')}</div>` : '<div class="empty-state"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></div><div class="empty-text">Trash is empty</div></div>';
+    } catch(e) {}
+
+  // ─── หมวด Stories
+  } else if (currentTrashTab === 'stories') {
+    const el = document.getElementById('trashStories'); // อ้างอิง element แสดงผล
+    try {
+      const rows = await sbFetch('stories'); // ดึงข้อมูล stories ทั้งหมด
+      const deleted = rows.filter(s => s.deleted_at); // กรองเฉพาะที่ถูก soft delete
+
+      // ถ้ามีรายการ → render แถวพร้อมปุ่ม Restore และ Delete Forever สำหรับแต่ละ story
+      // ถ้าไม่มี → แสดง empty state
+      el.innerHTML = deleted.length ? `<div class="list-card">${deleted.map(s => `
+        <div class="list-row" style="grid-template-columns:1fr auto;">
+          <div>
+            <div class="row-title">${s.title}</div>
+            <div class="row-sub">Deleted</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn-secondary btn-sm" onclick="restoreStory(${s.story_id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Restore</button>
+            <button class="btn btn-danger btn-sm" onclick="hardDeleteStory(${s.story_id})">Delete Forever</button>
+          </div>
+        </div>`).join('')}</div>` : '<div class="empty-state"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></div><div class="empty-text">Trash is empty</div></div>';
+    } catch(e) {}
+
+  // ─── หมวด Revenue
+  } else if (currentTrashTab === 'revenue') {
+    const el = document.getElementById('trashRevenue'); // อ้างอิง element แสดงผล
+    try {
+      // ดึงข้อมูลรายได้จาก 2 ตารางพร้อมกัน: story_incomes และ chapter_incomes
+      // เหตุผล: รายได้ถูกแยกเก็บ 2 ตารางตามประเภท จึงต้องดึงและรวมกัน
+      const [si, ei] = await Promise.all([sbFetch('story_incomes'), sbFetch('chapter_incomes')]);
+
+      // รวม records ที่ถูก soft delete จากทั้ง 2 ตาราง เป็น array เดียว
+      // เพิ่ม field _type ('story'/'chapter') และ _id เพื่อให้ปุ่ม Restore/Delete รู้ว่าต้องทำงานกับตารางไหน
+      const deleted = [
+        ...si.filter(r => r.deleted_at).map(r => ({...r, _type:'story',   _id:r.story_income_id})),
+        ...ei.filter(r => r.deleted_at).map(r => ({...r, _type:'chapter', _id:r.chapter_income_id}))
+      ];
+
+      // ถ้ามีรายการ → render แถวแต่ละรายการรายได้พร้อมปุ่ม Restore และ Delete Forever
+      // ถ้าไม่มี → แสดง empty state
+      el.innerHTML = deleted.length ? `<div class="list-card">${deleted.map(r => `
+        <div class="list-row" style="grid-template-columns:1fr auto;">
+          <div>
+            <div class="row-title">฿${parseFloat(r.amount).toLocaleString()} · ${r.income_date || ''}</div>
+            <div class="row-sub">${r._type} income</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn-secondary btn-sm" onclick="restoreRevenue('${r._type}',${r._id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Restore</button>
+            <button class="btn btn-danger btn-sm" onclick="hardDeleteRevenue('${r._type}',${r._id})">Delete Forever</button>
+          </div>
+        </div>`).join('')}</div>` : '<div class="empty-state"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></div><div class="empty-text">Trash is empty</div></div>';
+    } catch(e) {}
+  }
+}
+
+
+// restoreChapter — กู้คืน chapter ที่ถูก soft delete
+// เรียก sbRestore() ซึ่งจะ update deleted_at = null ในตาราง chapters สำหรับ episode_id ที่ระบุ
+// หลังกู้คืนสำเร็จ → แสดง toast แจ้งผู้ใช้ และ reload ถังขยะ
+async function restoreChapter(id) {
+  await sbRestore('chapters', id, 'episode_id'); // ส่ง: ชื่อตาราง, id, ชื่อ column PK
+  showToast('Chapter restored ✓');              // แจ้งผู้ใช้ว่ากู้คืนสำเร็จ
+  loadTrash();                                   // refresh รายการในถังขยะ
+}
+
+// hardDeleteChapter — ลบ chapter ออกจาก DB อย่างถาวร (Hard Delete)
+// ขอ confirm ก่อนเสมอ เพราะไม่สามารถกู้คืนได้อีก
+// การ confirm ช่วยป้องกันการลบโดยไม่ตั้งใจสำหรับ action ที่ย้อนกลับไม่ได้
+async function hardDeleteChapter(id) {
+  if (!confirm('Permanently delete this chapter? This cannot be undone.')) return; // ยกเลิกถ้ากด Cancel
+  await sbHardDelete('chapters', id, 'episode_id'); // ลบจริงจาก DB
+  showToast('Chapter deleted permanently');          // แจ้งผู้ใช้
+  loadTrash();                                        // refresh รายการ
+}
+
+// restoreStory — กู้คืน story ที่ถูก soft delete
+// เรียก sbRestore() เพื่อล้าง deleted_at ในตาราง stories สำหรับ story_id ที่ระบุ
+async function restoreStory(id) {
+  await sbRestore('stories', id, 'story_id'); // ส่ง: ชื่อตาราง, id, ชื่อ column PK
+  showToast('Story restored ✓');              // แจ้งผู้ใช้ว่ากู้คืนสำเร็จ
+  loadTrash();                                 // refresh รายการ
+}
+
+// hardDeleteStory — ลบ story ออกจาก DB อย่างถาวร
+// ขอ confirm ก่อนเสมอ เพราะ action นี้ย้อนกลับไม่ได้
+async function hardDeleteStory(id) {
+  if (!confirm('Permanently delete? This cannot be undone.')) return; // ยกเลิกถ้ากด Cancel
+  await sbHardDelete('stories', id, 'story_id');                      // ลบจริงจาก DB
+  showToast('Story deleted permanently');                               // แจ้งผู้ใช้
+  loadTrash();                                                          // refresh รายการ
+}
+
+// restoreRevenue — กู้คืนรายการรายได้ที่ถูก soft delete
+// รับ type ('story'/'chapter') เพื่อเลือกตารางที่ถูกต้อง
+// รายได้เก็บใน 2 ตาราง จึงต้องเลือก table และ idCol ให้ถูกต้องก่อนเรียก sbRestore()
+async function restoreRevenue(type, id) {
+  // เลือกชื่อตาราง: 'story' → story_incomes, 'chapter' → chapter_incomes
+  const table = type === 'story' ? 'story_incomes' : 'chapter_incomes';
+  // เลือกชื่อ column PK ที่ตรงกับตาราง
+  const idCol = type === 'story' ? 'story_income_id' : 'chapter_income_id';
+  await sbRestore(table, id, idCol); // กู้คืน record ในตารางที่ถูกต้อง
+  showToast('Record restored ✓');    // แจ้งผู้ใช้
+  loadTrash();                        // refresh รายการ
+}
+
+// hardDeleteRevenue — ลบรายการรายได้ออกจาก DB อย่างถาวร
+// รับ type เพื่อเลือกตารางที่ถูกต้อง เช่นเดียวกับ restoreRevenue
+// ขอ confirm ก่อนเสมอเพราะย้อนกลับไม่ได้
+async function hardDeleteRevenue(type, id) {
+  if (!confirm('Permanently delete?')) return; // ยกเลิกถ้ากด Cancel
+  // เลือกชื่อตารางและ column PK ตาม type
+  const table = type === 'story' ? 'story_incomes' : 'chapter_incomes';
+  const idCol = type === 'story' ? 'story_income_id' : 'chapter_income_id';
+  await sbHardDelete(table, id, idCol); // ลบจริงจาก DB
+  showToast('Deleted permanently');      // แจ้งผู้ใช้
+  loadTrash();                            // refresh รายการ
+}
+
+// ============================
+// MODALS
+// ============================
+
+// openModal — ฟังก์ชัน dispatcher กลาง รับ type เป็น string แล้วเลือกเรียก modal ที่เหมาะสม
+// รวม entry point ไว้จุดเดียว ทำให้ปุ่มใน UI เรียกแค่ openModal โดยไม่ต้องรู้ชื่อฟังก์ชันเฉพาะ
+function openModal(type) {
+  if (type === 'addStory')      showAddStoryModal();                                                           // เปิด modal เพิ่มนิยาย
+  if (type === 'addRevenue')    showAddRevenueModal();                                                         // เปิด modal เพิ่มรายได้
+  if (type === 'addPlatform')   showAddSimpleModal('Platform',    'platform_name',    'platforms',    loadPlatforms);   // เปิด modal เพิ่ม Platform (ใช้ generic modal)
+  if (type === 'addGenre')      showAddSimpleModal('Genre',       'genre_name',       'genres',       loadGenres);      // เปิด modal เพิ่ม Genre
+}
+
+// showAddStoryModal — ดึงรายการ genre จาก Supabase ก่อน แล้วสร้าง HTML ของ modal เพิ่มนิยาย
+async function showAddStoryModal() {
+  let genres = [];
+  // ดึง genre ทั้งหมด
+  // ใช้ try/catch เผื่อ API ล้มเหลว ให้ genres คงเป็น [] แทนที่จะ crash
+  try { genres = await sbFetch('genres'); } catch(e) {}
+
+  // showModal รับ HTML string แล้วใส่เข้า #modalContent และเปิด overlay
+  showModal(`
+    <div class="modal-title">+ Add New Story</div>
+
+    <div class="form-group"><div class="form-label">Title *</div><input type="text" id="sTitle" placeholder="Story title"></div>
+
+    <div class="form-group"><div class="form-label">Description</div><textarea id="sDesc" placeholder="Brief description..."></textarea></div>
+
+    <div class="form-group"><div class="form-label">Status</div>
+      <select id="sStatus"><option value="published">Published</option><option value="unpublished">Unpublished</option><option value="closed">Closed</option></select>
+    </div>
+
+    <div class="form-group">
+      <div class="form-label">Genres</div>
+      <div class="genre-chips" id="sGenreChips">
+        ${genres.map(g => `<div class="genre-chip" data-id="${g.genre_id}" onclick="toggleChip(this)">${g.genre_name}</div>`).join('')}
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStory()">Add Story</button>
+    </div>
+  `);
+}
+
+// saveStory — อ่านค่าจากฟอร์มใน modal แล้วบันทึกนิยายลง Supabase
+async function saveStory() {
+  // อ่านค่า title และตัด whitespace หัวท้าย
+  const title       = document.getElementById('sTitle').value.trim();
+  // อ่านคำอธิบาย
+  const description = document.getElementById('sDesc').value.trim();
+  // อ่านค่า status จาก dropdown
+  const status      = document.getElementById('sStatus').value;
+
+  // เลือกเฉพาะ chip ที่มี class 'selected' แล้ว map เป็น array ของ genre_id (integer)
+  // Spread [...querySelectorAll(...)] แปลง NodeList เป็น Array เพื่อใช้ .map()
+  const selectedGenres = [...document.querySelectorAll('#sGenreChips .genre-chip.selected')]
+                           .map(el => parseInt(el.dataset.id));
+
+  // Validation: title ห้ามว่าง แสดง toast แล้วหยุด ไม่ส่ง request
+  if (!title) { showToast('Title is required'); return; }
+
+  try {
+    // sbInsert('stories', {...}) — INSERT ข้อมูลนิยายใหม่ลง Supabase
+    // created_at / updated_at ใส่ timestamp ปัจจุบัน, deleted_at: null = ยังไม่ลบ (soft delete pattern)
+    const rows     = await sbInsert('stories', {
+      title, description, status,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      deleted_at: null
+    });
+    const newStory = rows[0]; // sbInsert คืน array เอาแถวแรกซึ่งคือนิยายที่เพิ่งสร้าง
+
+    // ถ้ามี genre ที่เลือก ให้วน INSERT ลง story_genres ทีละ genre
+    // ใช้ for...of แทน forEach เพราะต้องการ await ในแต่ละรอบ (sequential insert)
+    if (newStory && selectedGenres.length) {
+      for (const gid of selectedGenres) {
+        await sbInsert('story_genres', { story_id: newStory.story_id, genre_id: gid });
+      }
+    }
+
+    showToast('Story added ✓'); // แจ้งผู้ใช้ว่าสำเร็จ
+    closeModal();               // ปิด modal
+    loadStories();              // โหลด list นิยายใหม่ให้ UI อัปเดต
+  } catch(e) { showToast('Error: ' + e.message); } // แสดง error message ถ้า API ล้มเหลว
+}
+
+// ── _revenueModalChapters — module-level variable เก็บ chapters ทั้งหมดไว้ใน closure ──
+// showAddRevenueModal() ดึง chapters ครั้งเดียวแล้วเก็บไว้
+// filterChaptersByStory() สามารถเข้าถึงได้โดยไม่ต้องดึง API ซ้ำ
+let _revenueModalChapters = [];
+
+// showAddRevenueModal — ดึงข้อมูลที่จำเป็นทั้งหมดพร้อมกัน แล้วสร้าง modal สำหรับเพิ่มรายได้
+async function showAddRevenueModal() {
+  // Promise.all ดึง 4 ตารางพร้อมกัน (parallel)
+  // ประหยัดเวลาได้มาก เพราะ API call ทั้ง 4 รันพร้อมกัน
+  const [stories, chapters, platforms, incomeTypes] = await Promise.all([
+    sbFetch('stories'), sbFetch('chapters'), sbFetch('platforms'), sbFetch('income_types')
+  ]);
+
+  // กรองเฉพาะ story ที่ยังไม่ถูก soft-delete
+  const activeStories = stories.filter(s => !s.deleted_at);
+
+  // เก็บ chapters ที่ active ไว้ใน module-level variable เพื่อให้ filterChaptersByStory() ใช้ได้
+  _revenueModalChapters = chapters.filter(c => !c.deleted_at);
+
+  showModal(`
+    <div class="modal-title">+ Add Revenue Record</div>
+
+    <div class="form-group"><div class="form-label">Record Type</div>
+      <div class="radio-group">
+        <label class="radio-opt"><input type="radio" name="rType" value="story"   checked onchange="toggleRevType(this.value)"> Story Income</label>
+        <label class="radio-opt"><input type="radio" name="rType" value="chapter"         onchange="toggleRevType(this.value)"> Chapter Income</label>
+      </div>
+    </div>
+
+    <div class="form-group" id="revStoryGroup">
+      <div class="form-label">Story</div>
+      <select id="rStory" onchange="filterChaptersByStory()">
+        ${activeStories.map(s => `<option value="${s.story_id}">${s.title}</option>`).join('')}
+      </select>
+    </div>
+
+    <div class="form-group" id="revEpGroup" style="display:none;">
+      <div class="form-label">Chapter</div>
+      <select id="rEpisode">
+      </select>
+    </div>
+
+      <select id="rPlatform">${platforms.map(p => `<option value="${p.platform_id}">${p.platform_name}</option>`).join('')}</select>
+    </div>
+
+      <select id="rIncomeType">${incomeTypes.map(t => `<option value="${t.income_type_id}">${t.income_type_name}</option>`).join('')}</select>
+    </div>
+
+    <div class="form-group"><div class="form-label">Amount (฿)</div>
+      <input type="number" id="rAmount" placeholder="0.00" min="0" step="0.01">
+    </div>
+
+    <div class="form-group"><div class="form-label">Date</div>
+      <input type="date" id="rDate" value="${new Date().toISOString().split('T')[0]}">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRevenue()">Add Record</button>
+    </div>
+  `);
+
+  // เรียก filterChaptersByStory() ทันทีหลัง modal render เพื่อ populate chapters ของ story แรก
+  // ถ้าไม่เรียก Chapter dropdown จะว่างแม้ user ยังไม่ได้เปลี่ยน story
+  filterChaptersByStory();
+}
+
+// toggleRevType — แสดงหรือซ่อน Chapter selector ตามประเภทรายได้ที่เลือก
+// รับ val: 'story' | 'chapter'
+function toggleRevType(val) {
+  // Story group (#revStoryGroup) แสดงเสมอทั้งสองโหมด ไม่ต้องเปลี่ยน display
+  // Chapter group (#revEpGroup) แสดงเฉพาะเมื่อ val === 'chapter'
+  // ใช้ ternary operator เพื่อกำหนด display ในบรรทัดเดียว
+  document.getElementById('revEpGroup').style.display = val === 'chapter' ? 'block' : 'none';
+}
+
+// filterChaptersByStory — กรองและ rebuild Chapter dropdown ตาม story ที่เลือกอยู่
+// เรียกเมื่อ 1) เปิด modal ครั้งแรก, 2) user เปลี่ยน Story dropdown
+function filterChaptersByStory() {
+  // อ่าน story_id ที่เลือกอยู่ ใช้ optional chaining (?.) เผื่อ element ยังไม่พร้อม
+  const storyId  = document.getElementById('rStory')?.value;
+  const epSelect = document.getElementById('rEpisode');
+  if (!epSelect) return; // guard: ถ้า element ไม่มีใน DOM (เช่น modal ยังไม่ render) ให้หยุด
+
+  // กรอง chapters ที่ story_id ตรงกับที่เลือก
+  // ใช้ String() ทั้งสองฝั่งเพราะ story_id ใน HTML เป็น string แต่ในข้อมูลอาจเป็น number
+  // เรียง ascending ตาม episode_number เพื่อให้ dropdown เรียงตามลำดับตอน
+  const filtered = _revenueModalChapters
+    .filter(c => String(c.story_id) === String(storyId))
+    .sort((a, b) => a.episode_number - b.episode_number);
+
+  // rebuild innerHTML ของ <select>
+  // ถ้ามี chapter แสดงรายการ, ถ้าไม่มีแสดง placeholder "No chapters for this story"
+  // template literal สร้าง "Ep #1 — ชื่อตอน" หรือ "Untitled" ถ้าไม่มีชื่อ
+  epSelect.innerHTML = filtered.length
+    ? filtered.map(c => `<option value="${c.episode_id}">Ep #${c.episode_number} — ${c.title || 'Untitled'}</option>`).join('')
+    : '<option value="">No chapters for this story</option>';
+}
+
+// saveRevenue — อ่านค่าจากฟอร์ม revenue แล้วบันทึกลงตารางที่เหมาะสม
+async function saveRevenue() {
+  // อ่านค่า radio ที่ checked อยู่ ถ้าไม่มีเลย fallback เป็น 'story'
+  const type           = document.querySelector('input[name="rType"]:checked')?.value || 'story';
+  // parseInt แปลง string value จาก <select> เป็นตัวเลข เพราะ Supabase ต้องการ integer
+  const story_id       = parseInt(document.getElementById('rStory')?.value);
+  const platform_id    = parseInt(document.getElementById('rPlatform').value);
+  const income_type_id = parseInt(document.getElementById('rIncomeType').value);
+  // parseFloat สำหรับจำนวนเงินที่อาจมีทศนิยม
+  const amount         = parseFloat(document.getElementById('rAmount').value);
+  const income_date    = document.getElementById('rDate').value;
+
+  // Validation: amount ต้องมีค่าและไม่ใช่ NaN
+  if (!amount || isNaN(amount)) { showToast('Enter a valid amount'); return; }
+
+  try {
+    if (type === 'story') {
+      // Story Income: INSERT ลงตาราง story_incomes พร้อม story_id, platform_id, income_type_id, amount, income_date
+      // deleted_at: null เพื่อรองรับ soft delete pattern เดียวกับทั้ง app
+      await sbInsert('story_incomes', { story_id, platform_id, income_type_id, amount, income_date, deleted_at: null });
+    } else {
+      // Chapter Income: อ่าน episode_id จาก Chapter dropdown
+      const episode_id = parseInt(document.getElementById('rEpisode').value);
+      // Validation: episode_id ต้องมีค่า (ไม่ใช่ 0 หรือ NaN)
+      if (!episode_id) { showToast('Please select a chapter'); return; }
+      // INSERT ลงตาราง chapter_incomes โดยใช้ episode_id เป็น key
+      // ไม่ส่ง story_id เพราะ schema ของ chapter_incomes ไม่มีคอลัมน์นี้โดยตรง
+      // การ join กลับไป story ทำผ่าน chapters → story_id ใน JavaScript แทน
+      await sbInsert('chapter_incomes', { episode_id, platform_id, income_type_id, amount, income_date, deleted_at: null });
+    }
+    showToast('Revenue record added ✓'); // แจ้งผู้ใช้ว่าบันทึกสำเร็จ
+    closeModal();                         // ปิด modal
+    // โหลด revenue ใหม่เฉพาะเมื่อ user อยู่หน้า revenue ในขณะนั้น
+    // ถ้า user อยู่หน้าอื่นไม่จำเป็นต้อง reload (เพิ่ม performance)
+    if (currentPage === 'revenue') loadRevenue();
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+// showAddSimpleModal — generic modal สำหรับเพิ่มข้อมูล 1 field แบบง่าย (Platform, Genre, Income Type)
+// รับ: label = ชื่อแสดงผล, field = ชื่อคอลัมน์ใน DB, table = ชื่อตาราง, reload = ฟังก์ชัน reload
+// ลดการซ้ำโค้ด ใช้ template เดียวแทน 3 modal ที่หน้าตาเหมือนกัน
+function showAddSimpleModal(label, field, table, reload) {
+  showModal(`
+    <div class="modal-title">+ Add ${label}</div>
+    <div class="form-group"><div class="form-label">${label} Name *</div><input type="text" id="simpleName" placeholder="${label} name"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSimple('${field}','${table}',${reload.name})">Add</button>
+    </div>
+  `);
+}
+
+// saveSimple — บันทึกข้อมูลจาก generic modal (Platform / Genre / Income Type)
+// รับ: field = ชื่อคอลัมน์, table = ชื่อตาราง, reloadFn = ฟังก์ชันที่เรียกหลังบันทึกเสร็จ
+async function saveSimple(field, table, reloadFn) {
+  const name = document.getElementById('simpleName').value.trim();
+  if (!name) { showToast('Name is required'); return; } // Validation: ห้ามว่าง
+  try {
+    // Computed property name: { [field]: name } → เช่น { platform_name: "Wattpad" }
+    // ทำให้ฟังก์ชันนี้ใช้ได้กับทุก field โดยไม่ต้อง hardcode
+    await sbInsert(table, { [field]: name });
+    showToast('Added ✓');
+    closeModal();
+    await reloadFn(); // reload list ในหน้าที่เกี่ยวข้อง เช่น loadPlatforms()
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+// openEditPlatform — เปิด modal แก้ไขชื่อ Platform
+// รับ id และ name ของ platform ที่จะแก้ไข เพื่อ pre-fill ใน input
+function openEditPlatform(id, name) {
+  showModal(`
+    <div class="modal-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit Platform</div>
+    <div class="form-group"><div class="form-label">Platform Name</div><input type="text" id="editName" value="${name}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="updateSimple('platforms','platform_id',${id},'platform_name',loadPlatforms)">Update</button>
+    </div>
+  `);
+}
+
+// openEditGenre — เปิด modal แก้ไขชื่อ Genre (โครงสร้างเดียวกับ openEditPlatform)
+function openEditGenre(id, name) {
+  showModal(`
+    <div class="modal-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit Genre</div>
+    <div class="form-group"><div class="form-label">Genre Name</div><input type="text" id="editName" value="${name}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="updateSimple('genres','genre_id',${id},'genre_name',loadGenres)">Update</button>
+    </div>
+  `);
+}
+
+// openEditIncomeType — เปิด modal แก้ไขชื่อ Income Type (โครงสร้างเดียวกับ openEditPlatform)
+function openEditIncomeType(id, name) {
+  showModal(`
+    <div class="modal-title"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit Income Type</div>
+    <div class="form-group"><div class="form-label">Income Type Name</div><input type="text" id="editName" value="${name}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="updateSimple('income_types','income_type_id',${id},'income_type_name',loadIncomeTypes)">Update</button>
+    </div>
+  `);
+}
+
+// updateSimple — generic UPDATE สำหรับตารางง่ายๆ (Platform / Genre / Income Type)
+// รับ: table, idCol (ชื่อคอลัมน์ PK), id (ค่า PK), field (คอลัมน์ที่แก้), reloadFn
+async function updateSimple(table, idCol, id, field, reloadFn) {
+  const name = document.getElementById('editName').value.trim();
+  if (!name) { showToast('Name is required'); return; } // ห้ามบันทึกชื่อว่าง
+  try {
+    // sbUpdate อัปเดตแถวที่ idCol = id ด้วย object { [field]: name }
+    await sbUpdate(table, id, idCol, { [field]: name });
+    showToast('Updated ✓');
+    closeModal();
+    reloadFn(); // reload list ให้แสดงชื่อใหม่ทันที
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+// deletePlatform — ลบ Platform แบบ hard delete (ลบจริง ไม่ใช่ soft delete)
+// Platform เป็น reference data ที่ไม่ต้องการประวัติย้อนหลัง
+async function deletePlatform(id) {
+  // confirm dialog ให้ผู้ใช้ยืนยันก่อนลบ ป้องกันการลบโดยไม่ตั้งใจ
+  if (!confirm('Delete this platform?')) return;
+  await sbHardDelete('platforms', id, 'platform_id'); // ลบแถวที่ platform_id = id
+  showToast('Deleted');
+  loadPlatforms(); // reload list
+}
+
+// deleteGenre — ลบ Genre แบบ hard delete (โครงสร้างเดียวกับ deletePlatform)
+async function deleteGenre(id) {
+  if (!confirm('Delete this genre?')) return;
+  await sbHardDelete('genres', id, 'genre_id');
+  showToast('Deleted');
+  loadGenres();
+}
+
+// deleteIncomeType — ลบ Income Type แบบ hard delete (โครงสร้างเดียวกับ deletePlatform)
+async function deleteIncomeType(id) {
+  if (!confirm('Delete this income type?')) return;
+  await sbHardDelete('income_types', id, 'income_type_id');
+  showToast('Deleted');
+  loadIncomeTypes();
+}
+
+// ── Modal helpers ──
+
+// toggleChip — สลับ class 'selected' บน genre chip เมื่อผู้ใช้คลิก
+// ใช้ classList.toggle แทนการ if/else เพิ่ม/ลบ class เอง — กระชับกว่า
+function toggleChip(el) {
+  el.classList.toggle('selected');
+}
+
+// showModal — เปิด modal overlay และใส่ HTML content เข้าไป
+// รับ string ของ HTML ที่ต้องการแสดงใน modal
+// รวม logic การเปิด modal ไว้ที่เดียว ป้องกันการลืม add class 'open'
+function showModal(html) {
+  document.getElementById('modalContent').innerHTML = html; // ใส่ HTML เข้า container
+  document.getElementById('modalOverlay').classList.add('open'); // เพิ่ม class 'open' เพื่อแสดง overlay (CSS จัดการ animation)
+}
+
+// closeModal — ปิด modal โดยเอา class 'open' ออก
+// CSS จัดการ transition/animation ของการซ่อน overlay
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+// closeModalOutside — ปิด modal เมื่อผู้ใช้คลิกนอก modal content (บน overlay โดยตรง)
+// รับ e: MouseEvent จาก onclick บน #modalOverlay
+// UX ดีกว่า — ผู้ใช้คลิกพื้นที่ dimmed ข้างนอกก็ปิด modal ได้ โดยไม่ปิดเมื่อคลิกใน modal
+function closeModalOutside(e) {
+  // e.target === modalOverlay หมายความว่าคลิกตรงๆ บน overlay ไม่ใช่ bubble จาก element ข้างใน
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+// ── Toast notification ──
+
+// toastTimeout — เก็บ ID ของ setTimeout ปัจจุบัน เพื่อ cancel ได้เมื่อมี toast ใหม่เข้ามา
+// ถ้าไม่ clearTimeout แล้วมี toast หลายอันต่อกัน อันเก่าอาจซ่อนอันใหม่ก่อนกำหนด
+let toastTimeout;
+
+// showToast — แสดงข้อความ notification ชั่วคราวที่มุมหน้าจอ แล้วซ่อนอัตโนมัติหลัง 3 วินาที
+// รับ msg: string ข้อความที่จะแสดง
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;           // ใส่ข้อความลงใน #toast
+  el.classList.add('show');       // เพิ่ม class 'show' เพื่อ trigger CSS animation แสดง toast
+  clearTimeout(toastTimeout);     // ยกเลิก timer เดิม เผื่อมี toast ซ้อนกัน (reset countdown)
+  // ตั้ง timer ใหม่: หลัง 3000ms (3 วินาที) เอา class 'show' ออก → CSS animation ซ่อน toast
+  toastTimeout = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ============================
+// INIT
+// ============================
+
+// ฟังก์ชันเริ่มต้นของระบบ
+// ใช้สำหรับเตรียมข้อมูลและเปิดหน้าแรกเมื่อเว็บโหลดเสร็จ
+function init() {
+  // โหลดข้อมูลสำหรับ dropdown filters ของ Revenue
+  populateRevFilters();
+  navigate('dashboard'); // เปลี่ยนหน้าเริ่มต้นไปยัง dashboard
+}
+
+// On load — auto init with hardcoded key
+window.addEventListener('DOMContentLoaded', () => {
+  // เรียกฟังก์ชัน init()
+  // เพื่อเริ่มต้นระบบทันทีเมื่อหน้าเว็บโหลดเสร็จ
+  init();
+  // ============================
+  // กำหนดค่าเริ่มต้นของ Date Filter
+  // ============================
+
+  // วันที่ปัจจุบัน
+  // แปลงเป็นรูปแบบ YYYY-MM-DD
+  const to = new Date().toISOString().split('T')[0];
+  // วันที่ย้อนหลัง 180 วัน (ประมาณ 6 เดือน)
+  // ใช้ Date.now() แล้วลบจำนวน millisecond
+  const from = new Date(Date.now() - 180*24*60*60*1000).toISOString().split('T')[0];
+  // ใส่ค่าเริ่มต้นให้ input filterDateFrom
+  document.getElementById('filterDateFrom').value = from;
+  // ใส่ค่าเริ่มต้นให้ input filterDateTo
+  document.getElementById('filterDateTo').value = to;
+});
+</script>
+</body>
+</html>
